@@ -1,0 +1,26 @@
+# ─────────────────────────────────────────────────────────────
+# PRIVATE CHART DATA — never commit. Unreleased song material.
+# These stay local as regression fixtures only. (Cardinal rule.)
+# ─────────────────────────────────────────────────────────────
+*.json
+!package.json
+!package-lock.json
+
+# The four real recording charts, named explicitly as a belt-and-suspenders
+# guard in case the blanket *.json rule is ever loosened.
+Lamb Shepherd King.json
+Promise of Christ.json
+Search Me God.json
+The Right Hand of God.json
+
+# Anything under private/ is local-only (baseline print PDFs, real fixtures, notes)
+private/
+
+# Local backups (also live outside the repo, but guard the name just in case)
+*Backup*/
+
+# macOS / editor cruft
+.DS_Store
+*.swp
+.vscode/
+node_modules/
