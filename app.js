@@ -319,6 +319,7 @@
   let chart = {
     keyMidi:      9,
     timeSig:      '4/4',
+    tuning:       'standard',
     cellsPerBar:  4,
     cellsPerComp: 1,
     sections:     [{ name: '', entries: [], breaks: [], barNotes: {} }],
@@ -471,11 +472,13 @@
   /* ── Key / time sig / tuning controls ───────────── */
 
   document.getElementById('tuning-select').addEventListener('change', e => {
-    STRINGS = TUNINGS[e.target.value] || TUNINGS.standard;
+    chart.tuning = TUNINGS[e.target.value] ? e.target.value : 'standard';
+    STRINGS = TUNINGS[chart.tuning];
     const fb = document.getElementById('fretboard');
     fb.innerHTML = '';
     buildFretboard();
     updateNNSLabels();
+    autosave();
   });
 
   document.getElementById('key-select').addEventListener('change', e => {
@@ -506,8 +509,8 @@
 
   /* ── Transcribe mode toggle ──────────────────────── */
 
-  document.getElementById('transcribe-btn').addEventListener('click', () => {
-    transcribeMode = !transcribeMode;
+  function setTranscribeMode(on) {
+    transcribeMode = on;
     const panel = document.getElementById('transcribe-panel');
     const btn   = document.getElementById('transcribe-btn');
     panel.classList.toggle('hidden', !transcribeMode);
@@ -522,6 +525,10 @@
       lb.textContent = LABEL_TEXT['nns'];
       lb.classList.add('active');
     }
+  }
+
+  document.getElementById('transcribe-btn').addEventListener('click', () => {
+    setTranscribeMode(!transcribeMode);
   });
 
   /* ── Chart entry management ──────────────────────── */
@@ -1039,6 +1046,7 @@
         t.textContent = getEntrySymbol(entry);
         t.classList.toggle('subdivision', isSubdivision(entry));
       });
+      autosave();
     };
 
     // Measure note
@@ -1102,7 +1110,7 @@
   });
 
   document.getElementById('clear-btn').addEventListener('click', () => {
-    if (!confirm('Clear the entire chart?')) return;
+    if (!confirm('Clear the entire chart? This also removes the copy saved in this browser. Anything not saved to a file will be lost.')) return;
     if (isPlaying) stopPlayback();
     chart.sections = [{ name:'', entries:[], breaks:[], barNotes:{} }];
     chart.currentSec = 0; chart.selectedId = null; chart.lastAddedId = null; chart.nextId = 0; chart.loopSection = null;
@@ -1370,6 +1378,13 @@
 
   /* ── Save / Load ─────────────────────────────────── */
 
+  // Map internal time-sig ('4/4') back to the <select> option value ('44')
+  const TIMESIG_TO_OPT = { '4/4':'44', '3/4':'34', '2/4':'24', '6/8':'68' };
+
+  function currentBpm() {
+    return Math.max(40, Math.min(300, parseInt(document.getElementById('bpm-input').value) || 120));
+  }
+
   function chartSnapshot() {
     return {
       version:    1,
@@ -1378,6 +1393,8 @@
       tempo:      document.getElementById('song-tempo').value,
       keyMidi:    chart.keyMidi,
       timeSig:    chart.timeSig,
+      tuning:     chart.tuning,
+      bpm:        currentBpm(),
       cellsPerBar:  chart.cellsPerBar,
       cellsPerComp: chart.cellsPerComp,
       sections:   chart.sections,
@@ -1386,18 +1403,48 @@
     };
   }
 
+  /*
+   * Validate an imported/restored chart object BEFORE mutating any state.
+   * Returns true only if the shape is safe to load. This also closes an
+   * injection path: numeric fields (duration, cellsPerBar) are interpolated
+   * into the print-view HTML, so they must be real integers, never strings.
+   */
+  function isValidSnapshot(data) {
+    if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
+    if (data.version !== 1) return false;
+    if (!Number.isInteger(data.keyMidi) || data.keyMidi < 0 || data.keyMidi > 11) return false;
+    if (!TIME_SIG_DATA[data.timeSig]) return false;
+    if (!Number.isInteger(data.cellsPerBar) || data.cellsPerBar < 1 || data.cellsPerBar > 32) return false;
+    if (!Number.isInteger(data.cellsPerComp) || data.cellsPerComp < 1 || data.cellsPerComp > 32) return false;
+    if (!Array.isArray(data.sections)) return false;
+    for (const s of data.sections) {
+      if (!s || typeof s !== 'object') return false;
+      if (!Array.isArray(s.entries)) return false;
+      if (s.breaks !== undefined && !Array.isArray(s.breaks)) return false;
+      if (s.barNotes !== undefined && (typeof s.barNotes !== 'object' || s.barNotes === null)) return false;
+      for (const e of s.entries) {
+        if (!e || typeof e !== 'object') return false;
+        if (typeof e.degree !== 'string') return false;
+        if (!Number.isInteger(e.duration) || e.duration < 1 || e.duration > 64) return false;
+        if (e.quality !== undefined && typeof e.quality !== 'string') return false;
+        if (e.slash   !== undefined && typeof e.slash   !== 'string') return false;
+      }
+    }
+    return true;
+  }
+
   function restoreSnapshot(data) {
-    if (!data || data.version !== 1) return false;
+    if (!isValidSnapshot(data)) return false;
     document.getElementById('song-title').value  = data.title  || '';
     document.getElementById('song-writer').value = data.writer || '';
     document.getElementById('song-tempo').value  = data.tempo  || '';
     chart.keyMidi      = data.keyMidi;
     chart.timeSig      = data.timeSig;
+    chart.tuning       = TUNINGS[data.tuning] ? data.tuning : 'standard';
     chart.cellsPerBar  = data.cellsPerBar;
     chart.cellsPerComp = data.cellsPerComp;
     chart.sections     = data.sections;
-    chart.currentSec   = data.currentSec;
-    chart.nextId       = data.nextId;
+    chart.currentSec   = Math.min(Math.max(0, data.currentSec | 0), chart.sections.length - 1);
     chart.selectedId   = null;
     chart.lastAddedId  = null;
     chart.loopSection  = null;
@@ -1405,19 +1452,46 @@
     chart.sections.forEach(s => {
       if (!s.breaks)   s.breaks   = [];
       if (!s.barNotes) s.barNotes = {};
+      s.entries.forEach(e => { if (typeof e.quality !== 'string') e.quality = ''; if (typeof e.slash !== 'string') e.slash = ''; });
     });
     // Migrate old en-dash minor marker to hyphen
     chart.sections.forEach(s => s.entries.forEach(e => {
       if (e.quality === '–') e.quality = '-';
     }));
-    // Sync key and time-sig selectors
-    document.getElementById('key-select').value  = data.keyMidi;
-    document.getElementById('time-select').value = data.timeSig;
+    // Defensively recompute nextId so new entries can never collide with loaded ids
+    let maxId = -1;
+    chart.sections.forEach(s => s.entries.forEach(e => { if (Number.isInteger(e.id) && e.id > maxId) maxId = e.id; }));
+    chart.nextId = Math.max(Number.isInteger(data.nextId) ? data.nextId : 0, maxId + 1);
+
+    // Restore playback BPM: saved value wins; else seed from a numeric tempo; else 120
+    let bpm = (Number.isInteger(data.bpm) && data.bpm >= 40 && data.bpm <= 300) ? data.bpm : null;
+    if (bpm === null) {
+      const m = String(data.tempo || '').match(/\d{2,3}/);
+      const t = m ? parseInt(m[0]) : NaN;
+      bpm = (t >= 40 && t <= 300) ? t : 120;
+    }
+    document.getElementById('bpm-input').value = bpm;
+
+    // Rebuild the fretboard for the restored tuning
+    STRINGS = TUNINGS[chart.tuning];
+    const fb = document.getElementById('fretboard');
+    fb.innerHTML = '';
+    buildFretboard();
+
+    // Sync selectors with restored state
+    document.getElementById('key-select').value    = data.keyMidi;
+    document.getElementById('time-select').value   = TIMESIG_TO_OPT[data.timeSig] || '44';
+    document.getElementById('tuning-select').value  = chart.tuning;
     return true;
   }
 
   function autosave() {
     try { localStorage.setItem('nns-chart', JSON.stringify(chartSnapshot())); } catch {}
+  }
+
+  function chartHasContent() {
+    return chart.sections.some(s => s.entries.length > 0 || s.name) ||
+           document.getElementById('song-title').value.trim() !== '';
   }
 
   function saveChart() {
@@ -1433,17 +1507,26 @@
   function loadChart(file) {
     const reader = new FileReader();
     reader.onload = e => {
+      let data;
       try {
-        const data = JSON.parse(e.target.result);
-        if (restoreSnapshot(data)) {
-          renderChart();
-          updateNNSLabels();
-          initBeatGrid();
-          autosave();
-        } else {
-          alert('Unrecognised file format.');
-        }
-      } catch { alert('Could not read file.'); }
+        data = JSON.parse(e.target.result);
+      } catch {
+        alert('That file is not valid JSON, so it was not loaded. Your current chart is unchanged.');
+        return;
+      }
+      if (!isValidSnapshot(data)) {
+        alert('That file is not a recognised Bassboard Composer chart, so it was not loaded. Your current chart is unchanged.');
+        return;
+      }
+      if (chartHasContent() &&
+          !confirm('Load this chart? It will replace what you have open now. Anything not saved to a file will be lost.')) {
+        return;
+      }
+      if (isPlaying) stopPlayback();
+      restoreSnapshot(data);
+      setTranscribeMode(true);
+      updateNNSLabels();
+      renderChart();
     };
     reader.readAsText(file);
   }
@@ -1454,6 +1537,10 @@
   document.getElementById('load-input').addEventListener('change', e => {
     if (e.target.files[0]) { loadChart(e.target.files[0]); e.target.value = ''; }
   });
+
+  // Autosave typed song details as they change (title/writer/tempo aren't part of chart mutations)
+  ['song-title', 'song-writer', 'song-tempo'].forEach(id =>
+    document.getElementById(id).addEventListener('input', autosave));
 
   // Autosave on any chart mutation
   const _origRenderChart = renderChart;
@@ -1487,11 +1574,14 @@
   /* ── Init ────────────────────────────────────────── */
   buildFretboard();
 
-  // Restore last session from localStorage
+  // Restore last session from localStorage, and show it immediately if it has content
   try {
     const saved = localStorage.getItem('nns-chart');
-    if (saved) restoreSnapshot(JSON.parse(saved));
+    if (saved && restoreSnapshot(JSON.parse(saved)) && chartHasContent()) {
+      setTranscribeMode(true);
+    }
   } catch {}
 
   updateNNSLabels();
   initBeatGrid();
+  renderChart();

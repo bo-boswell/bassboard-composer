@@ -11,6 +11,12 @@ copy + print output without error.** The data-safety defects below are about *ru
 and typed metadata*, not about the saved fixture files themselves — which is why the files
 round-trip clean.
 
+**Fixed in M3 (2026-07-17):** D1, D2, D3, D4, D5, D6, D7, D9 — all verified by the
+`verify-m3.mjs` harness (43 checks incl. a security pass; fixtures still render byte-identical
+to the M1 baseline). New chart files carry optional `tuning`/`bpm` fields; `version` stays 1 so
+old and new files remain mutually loadable. **Still open:** D8, D10, D11, D12, D13 → M6;
+D14–D18 → M4/M5; D19–D21 → M8 (D21 partly addressed by the in-app storage note).
+
 ---
 
 ## P0 — Data safety / looks-like-data-loss (target: M3)

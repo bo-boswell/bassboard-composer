@@ -22,7 +22,7 @@ A–D — titles kept out of version control). They live locally and are git-ign
 - [ ] `[AUTO]` Key selector and transpose buttons change the NNS mapping.
 - [ ] `[AUTO]` Meter selector switches 4/4, 3/4, 2/4, 6/8.
 - [ ] `[BO]` Tuning selector redraws the fretboard for the chosen tuning.
-- [ ] `[FAIL D2]` Title/writer/tempo survive if you type them and reload **before** any other edit. *(Not autosaved until the next chart mutation.)*
+- [x] `[PASS D2 — fixed M3]` Title/writer/tempo autosave as you type and survive reload.
 
 ## 3. Add and name sections
 - [ ] `[BO]` "+ Section" adds a named section; sections render in order.
@@ -46,12 +46,12 @@ A–D — titles kept out of version control). They live locally and are git-ign
 - [ ] `[FAIL D8]` In **3/4**, the count-in is one bar and the downbeat accent lands on beat 1. *(Count-in hardcoded to 4 beats; accent counter misaligns after it.)*
 
 ## 7. Save, close, reopen, continue
-- [ ] `[AUTO]` **All four fixtures load and round-trip (save → reload) with zero data loss.** ✅ passing
-- [ ] `[FAIL D1]` After closing and reopening the browser, the autosaved chart is **visible immediately**. *(Restored into memory but not rendered until next action — looks like data loss.)*
-- [ ] `[FAIL D5]` After any load, the Time dropdown shows the correct meter. *(Value mismatch blanks the dropdown.)*
-- [ ] `[FAIL D6]` Tuning is restored on load. *(Not saved; resets to Standard.)*
-- [ ] `[FAIL D7]` Playback BPM is restored on load. *(Not saved; resets to 120.)*
-- [ ] `[FAIL D3]` A malformed JSON file is rejected without crashing or corrupting the autosave.
+- [x] `[AUTO]` **All four fixtures load and round-trip (save → reload) with zero data loss.** ✅ passing
+- [x] `[PASS D1 — fixed M3]` After closing and reopening the browser, the autosaved chart is visible immediately (panel auto-opens, chart drawn).
+- [x] `[PASS D5 — fixed M3]` After any load, the Time dropdown shows the correct meter.
+- [x] `[PASS D6 — fixed M3]` Tuning is saved and restored on load.
+- [x] `[PASS D7 — fixed M3]` Playback BPM is saved and restored (and seeded from a numeric tempo when unset).
+- [x] `[PASS D3 — fixed M3]` A malformed or wrong JSON file is rejected with a clear message and leaves the current chart unchanged. Load also warns before replacing a chart with content (D4).
 
 ## 8. Copy, print, or save as PDF
 - [ ] `[AUTO]` Plain-text and formatted copy generate without error. ✅ passing
