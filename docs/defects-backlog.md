@@ -14,8 +14,14 @@ round-trip clean.
 **Fixed in M3 (2026-07-17):** D1, D2, D3, D4, D5, D6, D7, D9 — all verified by the
 `verify-m3.mjs` harness (43 checks incl. a security pass; fixtures still render byte-identical
 to the M1 baseline). New chart files carry optional `tuning`/`bpm` fields; `version` stays 1 so
-old and new files remain mutually loadable. **Still open:** D8, D10, D11, D12, D13 → M6;
-D14–D18 → M4/M5; D19–D21 → M8 (D21 partly addressed by the in-app storage note).
+old and new files remain mutually loadable.
+
+**Fixed in M4 (2026-07-17):** D14 (real multi-step undo/redo via a snapshot stack + Cmd-Z/
+Cmd-Shift-Z), D15 (mid-chart insert — "+ After" duplicates the selected chord), D16 (meter
+change warns before regrouping bars). Also added (features Bo requested, not defects): section
+reordering (▲▼). Verified by `verify-m4.mjs` (20 checks; fixtures still byte-identical to M1
+baseline). **Still open:** D8, D10, D11, D12, D13 → M6; D17, D18 → M5; D19–D21 → M8
+(D21 partly addressed by the in-app storage note).
 
 ---
 

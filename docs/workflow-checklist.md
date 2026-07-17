@@ -37,7 +37,10 @@ A–D — titles kept out of version control). They live locally and are git-ign
 - [ ] `[BO]` Beat grid click/drag sets an entry's duration; splitting a measure works.
 - [ ] `[BO]` Quality buttons (–, -, °, +, sus, 7, maj7, m7) apply.
 - [ ] `[BO]` Slash note and measure note accept input and render.
-- [ ] `[FAIL D15]` An entry can be inserted **between** two existing entries. *(No mid-chart insertion exists.)*
+- [x] `[PASS D15 — fixed M4]` An entry can be inserted between two existing entries ("+ After" duplicates the selected chord).
+- [x] `[PASS D14 — fixed M4]` Undo/redo covers every chart change (notes, durations, qualities, slash, section names, key/meter/tuning); Cmd-Z / Cmd-Shift-Z work; buttons disable when nothing to undo/redo.
+- [x] `[PASS D16 — fixed M4]` Changing the meter with entries present warns first and reverts if cancelled.
+- [x] `[M4]` Sections can be reordered with ▲▼ controls.
 
 ## 6. Review or play the chart
 - [ ] `[BO]` Play sounds the chart; Stop halts it.

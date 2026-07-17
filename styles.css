@@ -1,5 +1,26 @@
 @charset "utf-8";
 
+    .btn:disabled,
+    .btn:disabled:hover {
+      opacity: 0.38;
+      cursor: default;
+      background: var(--surface2);
+      border-color: var(--fret-line);
+      color: var(--text);
+    }
+
+    .sec-move-btn {
+      padding: 1px 7px;
+      font-size: 0.8rem;
+      line-height: 1.3;
+      margin-left: 3px;
+    }
+
+    /* Selection: make the entry being edited unmistakable */
+    .entry-token.selected {
+      box-shadow: 0 0 0 2px rgba(77, 208, 225, 0.45);
+    }
+
     .app-footer {
       font-size: 0.72rem;
       color: var(--text-dim);

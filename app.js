@@ -501,7 +501,14 @@
 
   document.getElementById('time-select').addEventListener('change', e => {
     const map = { '44':'4/4', '34':'3/4', '24':'2/4', '68':'6/8' };
-    chart.timeSig     = map[e.target.value] || '4/4';
+    const next = map[e.target.value] || '4/4';
+    const hasEntries = chart.sections.some(s => s.entries.length > 0);
+    if (hasEntries && next !== chart.timeSig &&
+        !confirm('Changing the meter regroups every bar and can change how the chart reads. Continue?')) {
+      e.target.value = TIMESIG_TO_OPT[chart.timeSig] || '44';  // revert the dropdown
+      return;
+    }
+    chart.timeSig     = next;
     chart.cellsPerBar = TIME_SIG_DATA[chart.timeSig].cellsPerBar;
     chart.cellsPerComp= TIME_SIG_DATA[chart.timeSig].cellsPerComp;
     renderChart();
@@ -906,6 +913,23 @@
       });
       block.appendChild(loopBtn);
 
+      // Section reordering
+      const upBtn = document.createElement('button');
+      upBtn.className = 'btn sec-move-btn';
+      upBtn.textContent = '▲';
+      upBtn.title = 'Move section up';
+      upBtn.disabled = secIdx === 0;
+      upBtn.addEventListener('click', e => { e.stopPropagation(); moveSection(secIdx, -1); });
+      block.appendChild(upBtn);
+
+      const downBtn = document.createElement('button');
+      downBtn.className = 'btn sec-move-btn';
+      downBtn.textContent = '▼';
+      downBtn.title = 'Move section down';
+      downBtn.disabled = secIdx === chart.sections.length - 1;
+      downBtn.addEventListener('click', e => { e.stopPropagation(); moveSection(secIdx, +1); });
+      block.appendChild(downBtn);
+
       if (!sec.entries.length) { display.appendChild(block); return; }
 
       const bars       = groupIntoBars(sec.entries, chart.cellsPerBar);
@@ -998,6 +1022,7 @@
       if (editHint) editHint.style.display = 'none';
       const saveBtn = document.getElementById('save-changes-btn');
       if (saveBtn) saveBtn.style.display = 'none';
+      document.getElementById('insert-after-btn').style.display = 'none';
       document.getElementById('beat-grid').innerHTML = '';
       document.getElementById('qual-btns').innerHTML = '';
       document.getElementById('slash-input').value = '';
@@ -1006,6 +1031,7 @@
     }
 
     editor.classList.remove('hidden');
+    document.getElementById('insert-after-btn').style.display = '';
 
     document.getElementById('editor-symbol').textContent = getEntrySymbol(entry);
     const editHint = document.getElementById('edit-hint');
@@ -1078,17 +1104,25 @@
     renderChart();
   });
 
-  document.getElementById('undo-btn').addEventListener('click', () => {
-    const sec = chart.sections[chart.currentSec];
-    if (sec.entries.length > 0) {
-      const removed = sec.entries.pop();
-      if (chart.selectedId  === removed.id) chart.selectedId  = null;
-      if (chart.lastAddedId === removed.id) chart.lastAddedId = null;
-    } else if (chart.currentSec > 0) {
-      chart.sections.splice(chart.currentSec, 1);
-      chart.currentSec = chart.sections.length - 1;
+  document.getElementById('undo-btn').addEventListener('click', doUndo);
+  document.getElementById('redo-btn').addEventListener('click', doRedo);
+
+  document.getElementById('insert-after-btn').addEventListener('click', () => {
+    const id = chart.selectedId !== null ? chart.selectedId : chart.lastAddedId;
+    if (id == null) return;
+    for (const sec of chart.sections) {
+      const idx = sec.entries.findIndex(e => e.id === id);
+      if (idx >= 0) {
+        const src = sec.entries[idx];
+        if (src.degree === '%') return;  // repeat bars have nothing to copy
+        const copy = { id: chart.nextId++, degree: src.degree, quality: src.quality, slash: src.slash, duration: src.duration };
+        sec.entries.splice(idx + 1, 0, copy);
+        chart.selectedId  = copy.id;
+        chart.lastAddedId = null;
+        renderChart();
+        return;
+      }
     }
-    renderChart();
   });
 
   document.getElementById('delete-entry-btn').addEventListener('click', () => {
@@ -1487,11 +1521,116 @@
 
   function autosave() {
     try { localStorage.setItem('nns-chart', JSON.stringify(chartSnapshot())); } catch {}
+    historyCheckpoint();
   }
 
   function chartHasContent() {
     return chart.sections.some(s => s.entries.length > 0 || s.name) ||
            document.getElementById('song-title').value.trim() !== '';
+  }
+
+  /* ── Undo / redo (snapshot stack) ─────────────────── */
+  // History tracks chart CONTENT (notes, sections, key, meter, tuning). It does
+  // not track free-text song details (title/writer/tempo) — those have native
+  // text-field undo. Driven off autosave so every content change is captured
+  // exactly once, regardless of how many renders it triggered.
+  const HISTORY_CAP = 50;
+  let undoStack = [], redoStack = [], lastCommitted = null, applyingHistory = false;
+
+  function serializeContent() {
+    return JSON.stringify({
+      sections:     chart.sections,
+      keyMidi:      chart.keyMidi,
+      timeSig:      chart.timeSig,
+      tuning:       chart.tuning,
+      cellsPerBar:  chart.cellsPerBar,
+      cellsPerComp: chart.cellsPerComp,
+      currentSec:   chart.currentSec,
+    });
+  }
+
+  function updateUndoRedoButtons() {
+    const u = document.getElementById('undo-btn'), r = document.getElementById('redo-btn');
+    if (u) u.disabled = undoStack.length === 0;
+    if (r) r.disabled = redoStack.length === 0;
+  }
+
+  function resetHistory() {
+    undoStack = []; redoStack = [];
+    lastCommitted = serializeContent();
+    updateUndoRedoButtons();
+  }
+
+  function historyCheckpoint() {
+    if (applyingHistory || lastCommitted === null) return;
+    const cur = serializeContent();
+    if (cur === lastCommitted) return;
+    undoStack.push(lastCommitted);
+    if (undoStack.length > HISTORY_CAP) undoStack.shift();
+    redoStack = [];
+    lastCommitted = cur;
+    updateUndoRedoButtons();
+  }
+
+  function applyContent(str) {
+    const d = JSON.parse(str);
+    chart.sections     = d.sections;
+    chart.keyMidi      = d.keyMidi;
+    chart.timeSig      = d.timeSig;
+    chart.tuning       = TUNINGS[d.tuning] ? d.tuning : 'standard';
+    chart.cellsPerBar  = d.cellsPerBar;
+    chart.cellsPerComp = d.cellsPerComp;
+    chart.currentSec   = Math.min(Math.max(0, d.currentSec | 0), chart.sections.length - 1);
+    chart.selectedId   = null;
+    chart.lastAddedId  = null;
+    chart.loopSection  = null;
+    // Recompute nextId so restored entries can never collide with new ones
+    let maxId = -1;
+    chart.sections.forEach(s => s.entries.forEach(e => { if (e.id > maxId) maxId = e.id; }));
+    chart.nextId = maxId + 1;
+    // Rebuild the fretboard (tuning may differ) and re-sync selectors
+    STRINGS = TUNINGS[chart.tuning];
+    const fb = document.getElementById('fretboard');
+    fb.innerHTML = ''; buildFretboard();
+    document.getElementById('key-select').value    = chart.keyMidi;
+    document.getElementById('time-select').value   = TIMESIG_TO_OPT[chart.timeSig] || '44';
+    document.getElementById('tuning-select').value = chart.tuning;
+    updateNNSLabels();
+  }
+
+  function doUndo() {
+    if (!undoStack.length) return;
+    applyingHistory = true;
+    redoStack.push(serializeContent());
+    const prev = undoStack.pop();
+    applyContent(prev);
+    lastCommitted = prev;
+    renderChart();
+    applyingHistory = false;
+    updateUndoRedoButtons();
+  }
+
+  function doRedo() {
+    if (!redoStack.length) return;
+    applyingHistory = true;
+    undoStack.push(serializeContent());
+    const next = redoStack.pop();
+    applyContent(next);
+    lastCommitted = next;
+    renderChart();
+    applyingHistory = false;
+    updateUndoRedoButtons();
+  }
+
+  function moveSection(idx, dir) {
+    const j = idx + dir;
+    if (j < 0 || j >= chart.sections.length) return;
+    const s = chart.sections;
+    [s[idx], s[j]] = [s[j], s[idx]];
+    const fix = v => v === idx ? j : v === j ? idx : v;
+    chart.currentSec = fix(chart.currentSec);
+    if (chart.loopSection !== null) chart.loopSection = fix(chart.loopSection);
+    renderChart();
   }
 
   function saveChart() {
@@ -1527,6 +1666,7 @@
       setTranscribeMode(true);
       updateNNSLabels();
       renderChart();
+      resetHistory();  // a loaded file starts a fresh history
     };
     reader.readAsText(file);
   }
@@ -1538,8 +1678,8 @@
     if (e.target.files[0]) { loadChart(e.target.files[0]); e.target.value = ''; }
   });
 
-  // Autosave typed song details as they change (title/writer/tempo aren't part of chart mutations)
-  ['song-title', 'song-writer', 'song-tempo'].forEach(id =>
+  // Autosave typed song details as they change (title/writer/tempo/bpm aren't part of chart mutations)
+  ['song-title', 'song-writer', 'song-tempo', 'bpm-input'].forEach(id =>
     document.getElementById(id).addEventListener('input', autosave));
 
   // Autosave on any chart mutation
@@ -1571,6 +1711,16 @@
     }
   });
 
+  // Undo / redo keyboard shortcuts (skip when typing in a field, so native text undo still works)
+  document.addEventListener('keydown', e => {
+    const t = e.target;
+    if (t && (t.tagName === 'INPUT' || t.tagName === 'TEXTAREA' || t.isContentEditable)) return;
+    if (!(e.metaKey || e.ctrlKey)) return;
+    const k = e.key.toLowerCase();
+    if (k === 'z') { e.preventDefault(); e.shiftKey ? doRedo() : doUndo(); }
+    else if (k === 'y') { e.preventDefault(); doRedo(); }
+  });
+
   /* ── Init ────────────────────────────────────────── */
   buildFretboard();
 
@@ -1585,3 +1735,4 @@
   updateNNSLabels();
   initBeatGrid();
   renderChart();
+  resetHistory();  // establish the baseline state; nothing before this is undoable

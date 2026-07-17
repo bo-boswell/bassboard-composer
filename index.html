@@ -85,7 +85,8 @@
           <span id="speed-label" class="speed-label">100%</span>
         </div>
       </div>
-      <button class="btn" id="undo-btn">Undo</button>
+      <button class="btn" id="undo-btn" title="Undo (⌘Z)">Undo</button>
+      <button class="btn" id="redo-btn" title="Redo (⌘⇧Z)">Redo</button>
       <button class="btn" id="repeat-bar-btn" title="Insert a multi-bar repeat symbol">% Bar</button>
       <button class="btn active" id="copy-btn">Copy Chart</button>
       <button class="btn" id="view-btn">View Chart</button>
@@ -161,6 +162,7 @@
       <input class="measure-note-input" id="measure-note-input" type="text" placeholder="Drums only, Build…" maxlength="60">
     </div>
 
+    <button class="btn" id="insert-after-btn" title="Insert a copy of this chord right after it">+ After</button>
     <button class="btn danger" id="delete-entry-btn">Delete</button>
     <button class="btn save-changes" id="save-changes-btn" style="display:none">Save Changes</button>
   </div>
