@@ -82,7 +82,7 @@
     /* File dropdown */
     .menu { position: relative; }
     .menu-list {
-      position: absolute; right: 0; top: calc(100% + 4px); z-index: 40;
+      position: absolute; left: 0; top: calc(100% + 4px); z-index: 40;
       background: var(--surface2); border: 1px solid var(--fret-line); border-radius: 8px;
       box-shadow: 0 6px 20px rgba(0,0,0,0.45); padding: 5px; min-width: 175px;
       display: flex; flex-direction: column; gap: 2px;
@@ -505,8 +505,6 @@
     /* ── Chart display ────────────────────────────────── */
     .chart-display {
       min-height: 52px;
-      max-height: 240px;
-      overflow-y: auto;
       padding: 4px 0 8px;
     }
 
