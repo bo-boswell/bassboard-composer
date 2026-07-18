@@ -29,6 +29,46 @@
     }
     .app-footer strong { color: var(--text); font-weight: 600; }
 
+    /* ── Section header: name left, equal-size controls right, bordered ── */
+    .section-header {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      gap: 8px;
+      border: 1px solid var(--fret-line);
+      border-radius: 8px;
+      padding: 4px 6px 4px 10px;
+      margin-bottom: 8px;
+    }
+    .section-header .section-name-input { flex: 1; min-width: 0; }
+    .section-controls { display: flex; gap: 4px; flex-shrink: 0; }
+    .sec-btn {
+      width: 30px; height: 30px; padding: 0; flex-shrink: 0;
+      display: inline-flex; align-items: center; justify-content: center;
+      font-size: 0.9rem; line-height: 1;
+      background: var(--surface2); color: var(--text);
+      border: 1px solid var(--fret-line); border-radius: 6px; cursor: pointer;
+      transition: background 0.12s, border-color 0.12s, color 0.12s;
+    }
+    .sec-btn:hover { background: #2d3148; border-color: var(--accent); }
+    .sec-btn.active { background: #1b3a3e; border-color: var(--accent); color: var(--accent); }
+    .sec-btn:disabled { opacity: 0.35; cursor: default; background: var(--surface2); border-color: var(--fret-line); }
+
+    /* Center the panel content at the fretboard width for visual consistency */
+    .panel-toolbar,
+    .chart-display { max-width: var(--board-w, 100%); margin-left: auto; margin-right: auto; }
+
+    /* ── Collapsible fretboard ────────────────────────── */
+    .board-toggle { text-align: center; padding: 4px 0 0; }
+    .board-toggle-btn {
+      background: var(--surface2); color: var(--text-dim);
+      border: 1px solid var(--fret-line); border-top: none;
+      border-radius: 0 0 8px 8px;
+      padding: 3px 18px; font-size: 0.72rem; cursor: pointer;
+    }
+    .board-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
+    body.board-collapsed main { display: none; }
+
     /* ── First-run intro ──────────────────────────────── */
     .intro-panel {
       max-width: 640px;

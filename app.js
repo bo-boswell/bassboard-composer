@@ -402,6 +402,15 @@
     });
     appendMarkers(fb);
     appendRuler(fb);
+    syncBoardWidth();
+  }
+
+  // Match the chart/controls width to the fretboard so everything lines up.
+  function syncBoardWidth() {
+    const fb = document.getElementById('fretboard');
+    if (!fb) return;
+    const w = Math.round(fb.getBoundingClientRect().width);
+    if (w > 0) document.documentElement.style.setProperty('--board-w', w + 'px');
   }
 
   function appendRuler(fb) {
@@ -540,6 +549,16 @@
   document.getElementById('transcribe-btn').addEventListener('click', () => {
     setTranscribeMode(!transcribeMode);
   });
+
+  // Collapse / expand the fretboard to free up room for the chart
+  document.getElementById('board-toggle-btn').addEventListener('click', () => {
+    const collapsed = document.body.classList.toggle('board-collapsed');
+    document.getElementById('board-toggle-btn').textContent =
+      collapsed ? 'Show Fretboard ⌄' : 'Hide Fretboard ⌃';
+  });
+
+  // Keep the chart width matched to the fretboard as the window resizes
+  window.addEventListener('resize', syncBoardWidth);
 
   /* ── First-run intro + sample chart ──────────────── */
 
@@ -931,6 +950,11 @@
       const block = document.createElement('div');
       block.className = 'section-block';
 
+      const secIdx = chart.sections.indexOf(sec);
+
+      const hdr = document.createElement('div');
+      hdr.className = 'section-header';
+
       const h = document.createElement('input');
       h.type = 'text';
       h.className = 'section-name-input';
@@ -943,11 +967,13 @@
       h.addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); h.blur(); }
       });
-      block.appendChild(h);
+      hdr.appendChild(h);
+
+      const ctrls = document.createElement('div');
+      ctrls.className = 'section-controls';
 
       const loopBtn = document.createElement('button');
-      const secIdx  = chart.sections.indexOf(sec);
-      loopBtn.className = 'btn loop-btn' + (chart.loopSection === secIdx ? ' active' : '');
+      loopBtn.className = 'sec-btn' + (chart.loopSection === secIdx ? ' active' : '');
       loopBtn.title = 'Loop this section during playback';
       loopBtn.setAttribute('aria-label', 'Loop this section during playback');
       loopBtn.setAttribute('aria-pressed', chart.loopSection === secIdx ? 'true' : 'false');
@@ -958,26 +984,28 @@
         if (isPlaying) { stopPlayback(); startPlayback(); }
         renderChart();
       });
-      block.appendChild(loopBtn);
+      ctrls.appendChild(loopBtn);
 
-      // Section reordering
       const upBtn = document.createElement('button');
-      upBtn.className = 'btn sec-move-btn';
+      upBtn.className = 'sec-btn';
       upBtn.textContent = '▲';
       upBtn.title = 'Move section up';
       upBtn.setAttribute('aria-label', 'Move section up');
       upBtn.disabled = secIdx === 0;
       upBtn.addEventListener('click', e => { e.stopPropagation(); moveSection(secIdx, -1); });
-      block.appendChild(upBtn);
+      ctrls.appendChild(upBtn);
 
       const downBtn = document.createElement('button');
-      downBtn.className = 'btn sec-move-btn';
+      downBtn.className = 'sec-btn';
       downBtn.textContent = '▼';
       downBtn.title = 'Move section down';
       downBtn.setAttribute('aria-label', 'Move section down');
       downBtn.disabled = secIdx === chart.sections.length - 1;
       downBtn.addEventListener('click', e => { e.stopPropagation(); moveSection(secIdx, +1); });
-      block.appendChild(downBtn);
+      ctrls.appendChild(downBtn);
+
+      hdr.appendChild(ctrls);
+      block.appendChild(hdr);
 
       if (!sec.entries.length) { display.appendChild(block); return; }
 
@@ -1351,74 +1379,57 @@
     let headerHtml = '';
     if (title)  headerHtml += `<h1>${escHtml(title)}</h1>`;
     if (writer) headerHtml += `<p class="writer">${escHtml(writer)}</p>`;
-    const metaParts = [`Key: ${keyName}`, `Time: ${chart.timeSig}`];
+    const metaParts = [];
     if (tempo) metaParts.push(`Tempo: ${tempo}`);
-    headerHtml += `<p class="chart-meta">${escHtml(metaParts.join('  ·  '))}</p>`;
+    metaParts.push(`Time: ${chart.timeSig}`);
+    metaParts.push(`Key: ${keyName}`);
+    headerHtml += `<p class="chart-meta">${escHtml(metaParts.join('  |  '))}</p>`;
 
-    const cpb          = chart.cellsPerBar;
-    const cellWNum     = cpb >= 6 ? 1.1 : 1.3;
-    const barW         = (cpb * cellWNum).toFixed(2) + 'em';  // every bar is this exact width
-    const BARS_PER_ROW = cpb >= 6 ? 3 : 4;
-
-    // Build section data with running bar numbers
-    const allSecs = [];
-    let globalBarNum = 0;
+    // Build each section as a flowing number-chart block: bold name + chord
+    // lines. Split bars are underlined; groups of four bars are separated by •.
+    const secBlocks = [];
+    let totalBars = 0;
     chart.sections.forEach(sec => {
       if (!sec.entries.length) return;
-      const bars     = groupIntoBars(sec.entries, cpb);
-      const abbr     = sectionAbbr(sec.name);
       const barNotes = sec.barNotes || {};
-      allSecs.push({ abbr, bars, barNotes, startBarNum: globalBarNum + 1 });
-      globalBarNum += bars.length;
+      const bars = groupIntoBars(sec.entries, chart.cellsPerBar);
+      totalBars += bars.length;
+
+      const barStrs = bars.map((bar, barIdx) => {
+        const split = bar.length > 1;
+        const syms = bar.map(e => {
+          const sym   = escHtml(getEntrySymbol(e));
+          const ticks = getTickCount(e, bar);
+          return ticks > 0 ? `${sym}<sup>${tickStr(ticks)}</sup>` : sym;
+        });
+        const grouped = split ? `<u>${syms.join(' ')}</u>` : syms[0];
+        const note = barNotes[barIdx];
+        return note ? `${grouped} <span class="mnote">(${escHtml(note)})</span>` : grouped;
+      });
+
+      const lines = barStringsToLines(barStrs, sec.breaks)
+        .map(l => `<div class="chord-line">${l}</div>`).join('');
+      secBlocks.push({
+        bars: bars.length,
+        html: `<div class="chart-sec"><div class="sec-name">${escHtml(sec.name || '')}</div>${lines}</div>`,
+      });
     });
 
-    // Use two columns only when there's enough content to fill them; short
-    // charts stay single-column so they don't leave an empty right half.
-    const totalBars = allSecs.reduce((s, sec) => s + sec.bars.length, 0);
+    // Two columns only when there's enough to fill them; short charts stay single.
     const useTwoCols = totalBars > 16;
-
-    const leftSecs = [], rightSecs = [];
+    let bodyHtml;
     if (useTwoCols) {
       const target = Math.ceil(totalBars / 2);
+      const left = [], right = [];
       let count = 0, splitDone = false;
-      for (const sec of allSecs) {
-        if (!splitDone) {
-          leftSecs.push(sec);
-          count += sec.bars.length;
-          if (count >= target) splitDone = true;
-        } else {
-          rightSecs.push(sec);
-        }
+      for (const b of secBlocks) {
+        if (!splitDone) { left.push(b.html); count += b.bars; if (count >= target) splitDone = true; }
+        else right.push(b.html);
       }
+      bodyHtml = `<div class="chart-body two-col"><div class="col">${left.join('')}</div><div class="col">${right.join('')}</div></div>`;
     } else {
-      leftSecs.push(...allSecs);
+      bodyHtml = `<div class="chart-body one-col"><div class="col">${secBlocks.map(b => b.html).join('')}</div></div>`;
     }
-
-    function renderSection(sec) {
-      const { abbr, bars, barNotes, startBarNum } = sec;
-      let rowsHtml = '';
-      for (let r = 0; r < bars.length; r += BARS_PER_ROW) {
-        const rowBars  = bars.slice(r, r + BARS_PER_ROW);
-        const barNum   = startBarNum + r;
-        const barsHtml = rowBars.map((bar, ri) => {
-          const split    = bar.length > 1;
-          const noteText = barNotes[r + ri];
-          const chords   = bar.map(e => {
-            const sym   = escHtml(getEntrySymbol(e));
-            const ticks = getTickCount(e, bar);
-            const label = ticks > 0 ? `${sym}<sup>${tickStr(ticks)}</sup>` : sym;
-            return `<span class="ch" style="grid-column:span ${e.duration}">${label}</span>`;
-          }).join('');
-          const noteHtml = noteText ? `<div class="mnote">${escHtml(noteText)}</div>` : '';
-          return `<span class="sep">|</span><div class="bar${split ? ' sp' : ''}" style="width:${barW};grid-template-columns:repeat(${cpb},1fr)">${chords}${noteHtml}</div>`;
-        }).join('');
-        rowsHtml += `<div class="bar-row"><span class="bnum">${barNum}</span>${barsHtml}<span class="sep">|</span></div>`;
-      }
-      return `<div class="chart-sec"><div class="sec-hdr"><span class="sec-abbr">${escHtml(abbr)}</span></div>${rowsHtml}</div>`;
-    }
-
-    const leftHtml  = leftSecs.map(renderSection).join('');
-    const rightHtml = rightSecs.map(renderSection).join('');
 
     const html = `<!DOCTYPE html>
 <html lang="en"><head><meta charset="utf-8">
@@ -1427,32 +1438,25 @@
   * { box-sizing:border-box; margin:0; padding:0; }
   body {
     font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Helvetica, Arial, sans-serif;
-    font-size: 12px; color: #111; background: #fff;
+    font-size: 13px; color: #111; background: #fff;
     padding: 1.4cm 1.6cm 2cm;
   }
-  .chart-header { text-align:center; margin-bottom:1.4em; padding-bottom:0.9em; border-bottom:1px solid #ccc; }
-  .chart-header h1 { font-size:1.65em; font-weight:700; margin-bottom:0.18em; }
-  .chart-header .writer { font-size:0.9em; color:#555; margin-bottom:0.2em; }
-  .chart-header .chart-meta { font-size:0.8em; color:#777; }
-  .chart-body { display:flex; align-items:flex-start; }
-  .col { flex:1; min-width:0; }
-  .chart-body.two-col .col:first-child { padding-right:2em; border-right:1px solid #ccc; }
-  .chart-body.two-col .col:last-child  { padding-left:2em; }
+  .chart-header { text-align:center; margin-bottom:1.6em; padding-bottom:0.9em; border-bottom:1px solid #ccc; }
+  .chart-header h1 { font-size:1.7em; font-weight:700; margin-bottom:0.2em; }
+  .chart-header .writer { font-size:0.92em; color:#555; margin-bottom:0.25em; }
+  .chart-header .chart-meta { font-size:0.85em; color:#555; }
+  .chart-body { display:flex; align-items:flex-start; gap:3em; }
   .chart-body.one-col { justify-content:flex-start; }
   .chart-body.one-col .col { flex:0 1 auto; max-width:34em; }
-  .chart-sec { margin-bottom:1.1em; break-inside:avoid; }
-  .bar-row { break-inside:avoid; }
-  .sec-hdr { margin-bottom:0.1em; }
-  .sec-abbr { font-size:0.68em; font-weight:700; color:#555; text-transform:uppercase; letter-spacing:0.06em; }
-  .bar-row { display:flex; align-items:center; line-height:2.2; margin-bottom:0.05em; flex-wrap:nowrap; }
-  .bnum { font-size:0.52em; color:#bbb; min-width:1.8em; text-align:right; padding-right:0.3em; flex-shrink:0; }
-  .sep { color:#aaa; font-weight:300; padding:0 0.06em; flex-shrink:0; }
-  .bar { display:inline-grid; align-items:center; vertical-align:middle; }
-  .bar.sp { border-bottom:1.5px solid #111; }
-  .ch { white-space:nowrap; font-weight:500; font-size:1em; min-width:0; }
-  .mnote { font-size:0.7em; color:#999; font-style:italic; font-weight:400; }
+  .chart-body.two-col .col { flex:1; }
+  .col { min-width:0; }
+  .chart-sec { margin-bottom:1.3em; break-inside:avoid; }
+  .sec-name { font-weight:700; font-size:1.05em; margin-bottom:0.15em; }
+  .chord-line { white-space:pre-wrap; line-height:1.85; font-size:1.15em; letter-spacing:0.02em; }
+  .chord-line u { text-underline-offset:3px; }
+  .mnote { color:#888; font-style:italic; font-size:0.8em; }
   sup { font-size:0.6em; vertical-align:super; line-height:0; }
-  .no-print { text-align:center; margin-top:2em; }
+  .no-print { text-align:center; margin-top:2.5em; }
   .print-btn { font-size:0.9em; padding:8px 20px; background:#f5f5f5; border:1px solid #ccc; border-radius:8px; cursor:pointer; }
   .print-btn:hover { background:#e8e8e8; }
   @media print {
@@ -1464,10 +1468,7 @@
 </head>
 <body>
 <div class="chart-header">${headerHtml}</div>
-<div class="chart-body ${useTwoCols ? 'two-col' : 'one-col'}">
-  <div class="col">${leftHtml}</div>
-  ${useTwoCols ? `<div class="col">${rightHtml}</div>` : ''}
-</div>
+${bodyHtml}
 <div class="print-bar no-print">
   <button onclick="window.print()" class="print-btn">🖨 Print / Save as PDF</button>
 </div>
