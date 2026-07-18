@@ -683,8 +683,8 @@
     }
 
     .beat-cell {
-      min-width: 28px;
-      max-width: 42px;
+      min-width: 16px;
+      max-width: 40px;
       flex: 1;
       height: 34px;
       border-radius: 6px;
@@ -762,15 +762,26 @@
       border-radius: 6px;
       padding: 3px 8px;
       font-size: 0.78rem;
-      width: 180px;
+      width: 130px;
       outline: none;
     }
     .measure-note-input:focus { border-color: var(--accent); }
 
     .btn.danger       { color: #ff7070; border-color: #6a2a2a; }
     .btn.danger:hover { background: #3a1515; border-color: #ff7070; }
-    .btn.save-changes       { color: var(--accent); border-color: #1a4a3e; }
-    .btn.save-changes:hover { background: #1b3a3e; border-color: var(--accent); }
+    /* green "done editing" check */
+    .btn.save-changes       { color: #66bb6a; border-color: #2e5a3a; }
+    .btn.save-changes:hover { background: #16301b; border-color: #66bb6a; }
+
+    /* Compact icon buttons in the entry editor (copy / delete / done) */
+    .editor-icon-btn {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 38px; padding: 6px 10px; font-size: 1rem; line-height: 1;
+    }
+    .editor-icon-btn svg { display: block; }
+
+    /* Beat-grid: subtle divider at each beat boundary in the sixteenth grid */
+    .beat-cell.beat-start { border-left: 2px solid #4a4d5d; }
 
     .edit-hint {
       font-size: 0.68rem;

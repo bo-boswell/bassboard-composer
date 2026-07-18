@@ -8,32 +8,36 @@
   const KEY_NAMES    = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
 
   /*
-   * cellsPerBar  = how many cells the beat grid shows (= time sig numerator)
-   * cellsPerComp = how many cells equal one NNS "chord slot" in text output
-   *                (1 for simple meters; 3 for 6/8 compound beats)
+   * A "cell" is a SIXTEENTH note (finest grid resolution).
+   * cellsPerBar  = sixteenth-note slots the beat grid shows for the meter
+   * cellsPerComp = cells in one beat / chord slot (4 = a quarter beat; 6 = a 6/8 dotted-quarter pulse)
    * cellName     = plain-English name for one cell
+   *
+   * Accent pattern is indexed per BEAT (every cellsPerComp cells), not per cell.
    */
-  // Accent level per cell position within a bar ('strong' = downbeat, 'medium' = secondary beat)
+  // Accent level per beat position within a bar ('strong' = downbeat, 'medium' = secondary beat)
   const METRO_ACCENT = {
     '4/4': ['strong', 'soft', 'medium', 'soft'],
     '3/4': ['strong', 'soft', 'soft'],
     '2/4': ['strong', 'soft'],
-    '6/8': ['strong', 'soft', 'soft', 'medium', 'soft', 'soft'],
+    '6/8': ['strong', 'medium'],   // two dotted-quarter pulses
   };
 
+  // cellsPerComp = cells in one beat/pulse; tickCell = cells per tick mark in a split
+  // bar (a quarter in simple meters, an eighth in 6/8 — matches how charts are counted).
   const TIME_SIG_DATA = {
-    '4/4': { cellsPerBar: 4, cellsPerComp: 1, cellName: 'quarter note'  },
-    '3/4': { cellsPerBar: 3, cellsPerComp: 1, cellName: 'quarter note'  },
-    '2/4': { cellsPerBar: 2, cellsPerComp: 1, cellName: 'quarter note'  },
-    '6/8': { cellsPerBar: 6, cellsPerComp: 3, cellName: 'eighth note'   },
+    '4/4': { cellsPerBar: 16, cellsPerComp: 4, tickCell: 4, cellName: 'sixteenth note' },
+    '3/4': { cellsPerBar: 12, cellsPerComp: 4, tickCell: 4, cellName: 'sixteenth note' },
+    '2/4': { cellsPerBar: 8,  cellsPerComp: 4, tickCell: 4, cellName: 'sixteenth note' },
+    '6/8': { cellsPerBar: 12, cellsPerComp: 6, tickCell: 2, cellName: 'sixteenth note' },
   };
 
-  /* Human-readable note-value names for common cell counts */
+  /* Human-readable note-value names by cell (sixteenth) count */
   const NOTE_VALUE_LABELS = {
-    '4/4': { 1:'quarter note', 2:'half note', 3:'dotted half', 4:'whole note (full bar)' },
-    '3/4': { 1:'quarter note', 2:'half note', 3:'dotted half (full bar)' },
-    '2/4': { 1:'quarter note', 2:'half note (full bar)' },
-    '6/8': { 1:'eighth note', 2:'quarter note', 3:'dotted quarter', 4:'dotted quarter + eighth', 6:'dotted half (full bar)' },
+    '4/4': { 1:'sixteenth note', 2:'eighth note', 3:'dotted eighth', 4:'quarter note', 6:'dotted quarter', 8:'half note', 12:'dotted half', 16:'whole note (full bar)' },
+    '3/4': { 1:'sixteenth note', 2:'eighth note', 3:'dotted eighth', 4:'quarter note', 6:'dotted quarter', 8:'half note', 12:'dotted half (full bar)' },
+    '2/4': { 1:'sixteenth note', 2:'eighth note', 3:'dotted eighth', 4:'quarter note', 6:'dotted quarter', 8:'half note (full bar)' },
+    '6/8': { 1:'sixteenth note', 2:'eighth note', 3:'dotted eighth', 4:'quarter note', 6:'dotted quarter', 12:'dotted half (full bar)' },
   };
 
   const TUNINGS = {
@@ -177,8 +181,8 @@
   }
 
   function secsPerCell(bpm) {
-    // 6/8: BPM = dotted-quarter = 3 eighths; otherwise BPM = quarter note
-    return chart.timeSig === '6/8' ? 20 / bpm : 60 / bpm;
+    // A cell is a sixteenth. 6/8: BPM = dotted-quarter = 6 sixteenths; else BPM = quarter = 4 sixteenths.
+    return chart.timeSig === '6/8' ? 10 / bpm : 15 / bpm;
   }
 
   let isPlaying        = false;
@@ -188,8 +192,9 @@
   // Track beat-grid anchor (so a mid-track metronome toggle lines up with the chart)
   let trackStartTime = 0, trackSpc = 0;
 
-  // Independent metronome scheduler (look-ahead), so it can start/stop at any time
-  let metroTimer = null, metroNextTime = 0, metroCell = 0, metroFixedSpc = 0;
+  // Independent metronome scheduler (look-ahead), so it can start/stop at any time.
+  // It clicks once per BEAT (every cellsPerComp cells), not per cell.
+  let metroTimer = null, metroNextTime = 0, metroBeat = 0, metroFixedSpc = 0;
   const METRO_LOOKAHEAD = 0.12;   // schedule this many seconds ahead
   const METRO_INTERVAL  = 25;     // scheduler tick in ms
 
@@ -218,13 +223,15 @@
   }
 
   function metroScheduler() {
-    const spc = metroFixedSpc > 0 ? metroFixedSpc : currentSpc();
-    const pattern = METRO_ACCENT[chart.timeSig] || METRO_ACCENT['4/4'];
+    const cps      = metroFixedSpc > 0 ? metroFixedSpc : currentSpc();  // seconds per cell
+    const beatSecs = cps * chart.cellsPerComp;                          // seconds per beat
+    const beatsPerBar = chart.cellsPerBar / chart.cellsPerComp;
+    const pattern  = METRO_ACCENT[chart.timeSig] || METRO_ACCENT['4/4'];
     while (metroNextTime < audioCtx.currentTime + METRO_LOOKAHEAD) {
-      const level = pattern[metroCell % chart.cellsPerBar] || 'soft';
+      const level = pattern[metroBeat % beatsPerBar] || 'soft';
       scheduleClick(metroNextTime, level === 'strong', level === 'medium');
-      metroNextTime += spc;
-      metroCell++;
+      metroNextTime += beatSecs;
+      metroBeat++;
     }
   }
 
@@ -240,13 +247,14 @@
     ensureAudio();
     const now = audioCtx.currentTime;
     if (isPlaying && trackSpc > 0) {
-      const n = Math.max(0, Math.ceil((now + 0.06 - trackStartTime) / trackSpc));
-      metroNextTime = trackStartTime + n * trackSpc;
-      metroCell = n;
+      const beatSecs = trackSpc * chart.cellsPerComp;
+      const n = Math.max(0, Math.ceil((now + 0.06 - trackStartTime) / beatSecs));
+      metroNextTime = trackStartTime + n * beatSecs;
+      metroBeat = n;
       metroFixedSpc = trackSpc;
     } else {
       metroNextTime = now + 0.08;
-      metroCell = 0;
+      metroBeat = 0;
       metroFixedSpc = 0;  // 0 = follow the live BPM
     }
     restartMetroInterval();
@@ -310,7 +318,7 @@
     trackStartTime = gridStart;
     trackSpc       = spc;
     if (metronomeOn) {
-      metroNextTime = gridStart; metroCell = 0; metroFixedSpc = spc;
+      metroNextTime = gridStart; metroBeat = 0; metroFixedSpc = spc;
       restartMetroInterval();
     }
 
@@ -366,8 +374,8 @@
     keyMidi:      9,
     timeSig:      '4/4',
     tuning:       'standard',
-    cellsPerBar:  4,
-    cellsPerComp: 1,
+    cellsPerBar:  16,
+    cellsPerComp: 4,
     sections:     [{ name: '', entries: [], breaks: [], barNotes: {} }],
     currentSec:   0,
     selectedId:   null,
@@ -709,12 +717,15 @@
     return s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
   }
 
-  // Returns tick count for an entry when its bar has unequal durations; 0 = no ticks
+  // Tick marks show how many BEATS a chord holds in an unequal split bar.
+  // (0 = no ticks: single-chord bars, equal splits, or sub-beat durations.)
   function getTickCount(entry, bar) {
     if (bar.length <= 1) return 0;
     const allEqual = bar.every(e => e.duration === bar[0].duration);
     if (allEqual) return 0;
-    return entry.duration; // ticks = cell count (eighth notes in 6/8, quarter notes in 4/4)
+    const unit  = (TIME_SIG_DATA[chart.timeSig] || TIME_SIG_DATA['4/4']).tickCell;
+    const ticks = entry.duration / unit;
+    return Number.isInteger(ticks) ? ticks : 0;  // sub-unit durations show no ticks
   }
 
   function tickStr(n) { return "'".repeat(n); }
@@ -824,9 +835,11 @@
 
     for (let i = 0; i < chart.cellsPerBar; i++) {
       const cell = document.createElement('div');
-      cell.className = 'beat-cell';
+      const isBeatStart = i % chart.cellsPerComp === 0;
+      cell.className = 'beat-cell' + (isBeatStart ? ' beat-start' : '');
       cell.dataset.cellIdx = i;
-      cell.textContent = i + 1;
+      // Label the beat downbeats (1,2,3…); leave the in-between subdivisions blank
+      cell.textContent = isBeatStart ? String(i / chart.cellsPerComp + 1) : '';
 
       const cd = info.cellMap[i];
       if (cd.isSelected) {
@@ -1616,7 +1629,7 @@ ${bodyHtml}
 
   function chartSnapshot() {
     return {
-      version:    1,
+      version:    2,   // v2 = sixteenth-note cell resolution
       title:      document.getElementById('song-title').value,
       writer:     document.getElementById('song-writer').value,
       keyMidi:    chart.keyMidi,
@@ -1639,11 +1652,16 @@ ${bodyHtml}
    */
   function isValidSnapshot(data) {
     if (!data || typeof data !== 'object' || Array.isArray(data)) return false;
-    if (data.version !== 1) return false;
+    if (data.version !== 1 && data.version !== 2) return false;   // v1 files auto-migrate on load
     if (!Number.isInteger(data.keyMidi) || data.keyMidi < 0 || data.keyMidi > 11) return false;
     if (!TIME_SIG_DATA[data.timeSig]) return false;
     if (!Number.isInteger(data.cellsPerBar) || data.cellsPerBar < 1 || data.cellsPerBar > 32) return false;
     if (!Number.isInteger(data.cellsPerComp) || data.cellsPerComp < 1 || data.cellsPerComp > 32) return false;
+    // A v1 file must scale to the v2 sixteenth grid by a whole-number factor
+    if (data.version === 1) {
+      const factor = TIME_SIG_DATA[data.timeSig].cellsPerBar / data.cellsPerBar;
+      if (!Number.isInteger(factor) || factor < 1) return false;
+    }
     if (!Array.isArray(data.sections)) return false;
     for (const s of data.sections) {
       if (!s || typeof s !== 'object') return false;
@@ -1668,8 +1686,17 @@ ${bodyHtml}
     chart.keyMidi      = data.keyMidi;
     chart.timeSig      = data.timeSig;
     chart.tuning       = TUNINGS[data.tuning] ? data.tuning : 'standard';
-    chart.cellsPerBar  = data.cellsPerBar;
-    chart.cellsPerComp = data.cellsPerComp;
+    // v2 uses sixteenth-note cells. v1 stored coarser cells (quarters / 6-8 eighths);
+    // scale every duration by the exact integer factor so nothing is lost.
+    const target = TIME_SIG_DATA[data.timeSig];
+    const migrateFactor = (data.version === 1 && data.cellsPerBar > 0)
+      ? target.cellsPerBar / data.cellsPerBar
+      : 1;
+    if (migrateFactor !== 1) {
+      data.sections.forEach(s => s.entries.forEach(e => { e.duration = e.duration * migrateFactor; }));
+    }
+    chart.cellsPerBar  = target.cellsPerBar;
+    chart.cellsPerComp = target.cellsPerComp;
     chart.sections     = data.sections;
     chart.currentSec   = Math.min(Math.max(0, data.currentSec | 0), chart.sections.length - 1);
     chart.selectedId   = null;

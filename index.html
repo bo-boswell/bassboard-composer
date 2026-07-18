@@ -161,9 +161,11 @@
       <input class="measure-note-input" id="measure-note-input" type="text" placeholder="Drums only, Build…" maxlength="60">
     </div>
 
-    <button class="btn" id="insert-after-btn" title="Insert a copy of this chord right after it">+ After</button>
-    <button class="btn danger" id="delete-entry-btn">Delete</button>
-    <button class="btn save-changes" id="save-changes-btn" style="display:none">Save Changes</button>
+    <button class="btn editor-icon-btn" id="insert-after-btn" title="Insert a copy of this chord after it" aria-label="Insert a copy of this chord after it">
+      <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" stroke-width="1.8" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="8" y="8" width="12" height="12" rx="2"/><path d="M4 16 V4 a2 2 0 0 1 2-2 h10"/></svg>
+    </button>
+    <button class="btn editor-icon-btn danger" id="delete-entry-btn" title="Delete this chord" aria-label="Delete this chord">&#10005;</button>
+    <button class="btn editor-icon-btn save-changes" id="save-changes-btn" title="Done editing" aria-label="Done editing" style="display:none">&#10003;</button>
   </div>
 </section>
 
