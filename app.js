@@ -1212,14 +1212,14 @@
 
     // Quality buttons
     const QUALITIES = [
-      { label: '—',   val: ''     },
-      { label: '-',   val: '-'    },
-      { label: '°',   val: '°'   },
-      { label: '+',   val: '+'    },
-      { label: 'sus', val: 'sus'  },
-      { label: '7',   val: '7'   },
-      { label: 'maj7',val: 'maj7' },
-      { label: 'm7',  val: 'm7'  },
+      { label: '—',   val: '',     tip: 'Major (no marker needed)' },
+      { label: '-',   val: '-',    tip: 'Minor' },
+      { label: '°',   val: '°',   tip: 'Diminished' },
+      { label: '+',   val: '+',    tip: 'Augmented' },
+      { label: 'sus', val: 'sus',  tip: 'Suspended (sus4)' },
+      { label: '7',   val: '7',   tip: 'Dominant 7th' },
+      { label: 'maj7',val: 'maj7', tip: 'Major 7th' },
+      { label: 'm7',  val: 'm7',  tip: 'Minor 7th' },
     ];
     const qualRow = document.getElementById('qual-btns');
     qualRow.innerHTML = '';
@@ -1227,6 +1227,8 @@
       const b = document.createElement('button');
       b.className = 'micro-btn' + (entry.quality === q.val ? ' sel' : '');
       b.textContent = q.label;
+      b.title = q.tip;
+      b.setAttribute('aria-label', q.tip);
       b.addEventListener('click', () => { entry.quality = q.val; renderChart(); });
       qualRow.appendChild(b);
     });
