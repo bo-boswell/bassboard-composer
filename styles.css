@@ -104,6 +104,13 @@
       flex: 0 1 auto;
     }
 
+    /* Icon-only transport buttons (Play / Metronome) */
+    .transport-icon {
+      display: inline-flex; align-items: center; justify-content: center;
+      min-width: 42px; height: 34px; padding: 4px 10px; font-size: 1rem; line-height: 1;
+    }
+    .transport-icon svg { display: block; }
+
     /* Merged transpose control (♭ / ♯) to the right of the Key selector */
     .transpose-control { display: inline-flex; }
     .transpose-control .xpose-btn { border-radius: 0; }

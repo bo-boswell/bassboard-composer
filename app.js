@@ -264,7 +264,9 @@
 
   function updatePlayBtn() {
     const btn = document.getElementById('play-btn');
-    btn.textContent = isPlaying ? '■ Stop' : '▶ Play';
+    btn.textContent = isPlaying ? '■' : '▶';
+    btn.title = isPlaying ? 'Stop' : 'Play';
+    btn.setAttribute('aria-label', isPlaying ? 'Stop' : 'Play');
     btn.classList.toggle('active', isPlaying);
   }
 
