@@ -184,6 +184,7 @@
   let isPlaying        = false;
   let playbackTimeouts = [];
   let metronomeOn      = false;
+  let playMode         = 'track';  // 'track' plays the chart; 'metronome' plays the click only
 
   function scheduleClick(time, accent, medium) {
     const ctx  = audioCtx;
@@ -231,7 +232,9 @@
 
   function startPlayback() {
     const hasEntries = chart.sections.some(s => s.entries.length > 0);
-    if (!hasEntries && !metronomeOn) return;
+    // Metronome-only when the user picked that mode, or when there's no chart to play
+    const metronomeOnly = playMode === 'metronome' || !hasEntries;
+    if (playMode === 'track' && !hasEntries && !metronomeOn) return;
     ensureAudio();
 
     const rawBpm = Math.max(40, Math.min(300, parseInt(document.getElementById('bpm-input').value) || 120));
@@ -245,7 +248,7 @@
     const mg = ensureMasterGain();
     mg.gain.setValueAtTime(1, audioCtx.currentTime);
 
-    if (!hasEntries) {
+    if (metronomeOnly) {
       const pattern = METRO_ACCENT[chart.timeSig] || METRO_ACCENT['4/4'];
       const end = audioCtx.currentTime + 0.05 + 480;
       let mt = audioCtx.currentTime + 0.05, cell = 0;
@@ -1316,6 +1319,18 @@
     metronomeOn = !metronomeOn;
     document.getElementById('metro-btn').classList.toggle('active', metronomeOn);
   });
+
+  // Play mode: Track (plays the chart) vs Metronome (click only)
+  function setPlayMode(mode) {
+    playMode = mode === 'metronome' ? 'metronome' : 'track';
+    if (isPlaying) stopPlayback();
+    document.getElementById('mode-track-btn').classList.toggle('active', playMode === 'track');
+    document.getElementById('mode-metro-btn').classList.toggle('active', playMode === 'metronome');
+    // The "click along with the track" toggle only applies in Track mode
+    document.getElementById('metro-btn').disabled = playMode === 'metronome';
+  }
+  document.getElementById('mode-track-btn').addEventListener('click', () => setPlayMode('track'));
+  document.getElementById('mode-metro-btn').addEventListener('click', () => setPlayMode('metronome'));
 
   document.getElementById('speed-range').addEventListener('input', e => {
     document.getElementById('speed-label').textContent = e.target.value + '%';

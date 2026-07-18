@@ -97,8 +97,12 @@
     </div>
 
     <div class="transport-group">
+      <div class="mode-toggle" role="group" aria-label="Play mode">
+        <button class="btn mode-btn active" id="mode-track-btn" data-mode="track" title="Play the chart">Track</button>
+        <button class="btn mode-btn" id="mode-metro-btn" data-mode="metronome" title="Play the metronome only">Metronome</button>
+      </div>
       <button class="btn" id="play-btn">&#9654; Play</button>
-      <button class="btn" id="metro-btn" title="Click metronome during playback">&#9834; Metro</button>
+      <button class="btn" id="metro-btn" title="Play a click along with the track">&#9834; Metro</button>
       <div class="ctrl-group">
         <label class="ctrl-label" for="time-select">Time</label>
         <select class="ctrl-select" id="time-select">
