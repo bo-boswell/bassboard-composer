@@ -161,6 +161,25 @@
     osc1.stop(stopAt); osc2.stop(stopAt);
   }
 
+  // Short pitchless percussive "thunk" for a muted / dead note
+  function synthMuted(startTime, dest) {
+    const ctx = audioCtx, now = startTime;
+    const osc  = ctx.createOscillator();
+    const gain = ctx.createGain();
+    const filt = ctx.createBiquadFilter();
+    filt.type = 'lowpass';
+    filt.frequency.setValueAtTime(500, now);
+    filt.frequency.exponentialRampToValueAtTime(120, now + 0.08);
+    osc.type = 'triangle';
+    osc.frequency.setValueAtTime(80, now);
+    osc.frequency.exponentialRampToValueAtTime(55, now + 0.08);
+    gain.gain.setValueAtTime(0, now);
+    gain.gain.linearRampToValueAtTime(0.4, now + 0.004);
+    gain.gain.exponentialRampToValueAtTime(0.001, now + 0.1);
+    osc.connect(filt); filt.connect(gain); gain.connect(dest);
+    osc.start(now); osc.stop(now + 0.11);
+  }
+
   function playNote(midi) {
     ensureAudio();
     synthNote(midi, audioCtx.currentTime, audioCtx.destination); // no durationSecs → pluck
@@ -338,7 +357,9 @@
           if (!isRepeat) prevNonRepeatBar = bar;
           if (!playBar) { t += chart.cellsPerBar * spc; continue; }
           for (const entry of playBar) {
-            synthNote(entryToMidi(entry), t, mg, entry.duration * spc);
+            if (entry.degree === 'X')      synthMuted(t, mg);                                  // dead note
+            else if (entry.degree !== 'R') synthNote(entryToMidi(entry), t, mg, entry.duration * spc);
+            // 'R' = rest: silent, time still advances
             if (!isRepeat) {
               const delayMs = (t - audioCtx.currentTime) * 1000;
               playbackTimeouts.push(setTimeout(() => highlightPlayingEntry(entry.id), delayMs));
@@ -701,7 +722,27 @@
     renderChart();
   }
 
+  // Insert a rest ('R') or muted note ('X') after the selected chord, else append
+  // to the current section. Defaults to one beat; adjust length with the beat grid.
+  function insertSpecial(degree) {
+    const entry = { id: chart.nextId++, degree, quality: '', slash: '', duration: chart.cellsPerComp };
+    const id = chart.selectedId !== null ? chart.selectedId : chart.lastAddedId;
+    let placed = false;
+    if (id != null) {
+      for (const sec of chart.sections) {
+        const idx = sec.entries.findIndex(e => e.id === id);
+        if (idx >= 0) { sec.entries.splice(idx + 1, 0, entry); chart.currentSec = chart.sections.indexOf(sec); placed = true; break; }
+      }
+    }
+    if (!placed) chart.sections[chart.currentSec].entries.push(entry);
+    chart.selectedId  = entry.id;
+    chart.lastAddedId = null;
+    renderChart();
+  }
+
   function getEntrySymbol(e) {
+    if (e.degree === 'R') return 'R';          // rest (silent)
+    if (e.degree === 'X') return 'X';          // muted / dead note (percussive)
     return e.degree + e.quality + (e.slash ? '/' + e.slash : '');
   }
 
@@ -1158,7 +1199,11 @@
             } else {
               tok.textContent = getEntrySymbol(entry);
             }
-            tok.addEventListener('click', () => { playNote(entryToMidi(entry)); chart.selectedId = entry.id; chart.lastAddedId = null; renderChart(); });
+            tok.addEventListener('click', () => {
+              if (entry.degree === 'X') { ensureAudio(); synthMuted(audioCtx.currentTime, audioCtx.destination); }
+              else if (entry.degree !== 'R' && entry.degree !== '%') playNote(entryToMidi(entry));
+              chart.selectedId = entry.id; chart.lastAddedId = null; renderChart();
+            });
             barEl.appendChild(tok);
           });
 
@@ -1212,8 +1257,26 @@
       return;
     }
 
+    // Rest / muted note: duration is editable, but quality and slash don't apply
+    if (entry.degree === 'R' || entry.degree === 'X') {
+      editor.classList.remove('hidden');
+      document.getElementById('editor-symbol').textContent = getEntrySymbol(entry);
+      const editHint = document.getElementById('edit-hint'); if (editHint) editHint.style.display = 'none';
+      const saveBtn = document.getElementById('save-changes-btn');
+      if (saveBtn) saveBtn.style.display = chart.selectedId !== null ? '' : 'none';
+      document.getElementById('insert-after-btn').style.display = '';
+      renderBeatGrid(entry);
+      document.getElementById('qual-btns').closest('.editor-group').style.display = 'none';
+      document.querySelector('.slash-group').style.display = 'none';
+      wireMeasureNote(entry);
+      reserveForEditor();
+      return;
+    }
+
     editor.classList.remove('hidden');
     document.getElementById('insert-after-btn').style.display = '';
+    document.getElementById('qual-btns').closest('.editor-group').style.display = '';
+    document.querySelector('.slash-group').style.display = '';
 
     document.getElementById('editor-symbol').textContent = getEntrySymbol(entry);
     const editHint = document.getElementById('edit-hint');
@@ -1259,7 +1322,12 @@
       autosave();
     };
 
-    // Measure note
+    wireMeasureNote(entry);
+
+    reserveForEditor();
+  }
+
+  function wireMeasureNote(entry) {
     const measureNoteInput = document.getElementById('measure-note-input');
     const barLoc = getBarIndexForEntry(entry.id);
     measureNoteInput.value = (barLoc && barLoc.sec.barNotes) ? (barLoc.sec.barNotes[barLoc.barIdx] || '') : '';
@@ -1271,8 +1339,6 @@
       else delete barLoc.sec.barNotes[barLoc.barIdx];
       autosave();
     };
-
-    reserveForEditor();
   }
 
   // The Entry Editor is docked to the bottom of the window; reserve page space
@@ -1391,6 +1457,8 @@
   });
 
   document.getElementById('repeat-bar-btn').addEventListener('click', addRepeatBar);
+  document.getElementById('rest-btn').addEventListener('click', () => insertSpecial('R'));
+  document.getElementById('mute-btn').addEventListener('click', () => insertSpecial('X'));
 
   /* ── Output generation ───────────────────────────── */
 
