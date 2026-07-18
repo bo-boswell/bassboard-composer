@@ -285,17 +285,27 @@
 
   function setMetronome(on) {
     metronomeOn = on;
-    document.getElementById('metro-btn').classList.toggle('active', metronomeOn);
     if (metronomeOn) startMetronome(); else stopMetronome();
+    updateTransportUI();
   }
 
-  function updatePlayBtn() {
-    const btn = document.getElementById('play-btn');
-    btn.textContent = isPlaying ? '■' : '▶';
-    btn.title = isPlaying ? 'Stop' : 'Play';
-    btn.setAttribute('aria-label', isPlaying ? 'Stop' : 'Play');
-    btn.classList.toggle('active', isPlaying);
+  // Which of the three transport modes is currently active (or null = stopped)
+  function currentMode() {
+    if (isPlaying && metronomeOn) return 'playmetro';
+    if (isPlaying)               return 'play';
+    if (metronomeOn)             return 'metro';   // metronome running on its own
+    return null;
   }
+
+  function updateTransportUI() {
+    const mode = currentMode();
+    const map = { play:'tp-play', playmetro:'tp-playmetro', metro:'tp-metro' };
+    ['tp-play','tp-playmetro','tp-metro'].forEach(id => {
+      const el = document.getElementById(id);
+      if (el) el.classList.toggle('active', map[mode] === id);
+    });
+  }
+  const updatePlayBtn = updateTransportUI;  // keep old callers working
 
   function highlightPlayingEntry(id) {
     document.querySelectorAll('.entry-token').forEach(t => {
@@ -1444,13 +1454,32 @@
 
   document.getElementById('copy-btn').addEventListener('click', copyChart);
 
-  document.getElementById('play-btn').addEventListener('click', () => {
-    if (isPlaying) stopPlayback(); else startPlayback();
-  });
+  // 3-way transport: Play / Play+Metronome / Metronome-only. One tap picks a mode;
+  // tapping the active mode stops. Play<->Play+Metronome toggles the click live.
+  function stopAll() {
+    if (isPlaying) stopPlayback();
+    if (metronomeOn) setMetronome(false);
+    updateTransportUI();
+  }
 
-  // Metronome: an independent click that can be toggled on/off at any time —
-  // standalone or layered over a playing track (it locks to the chart's beat grid).
-  document.getElementById('metro-btn').addEventListener('click', () => setMetronome(!metronomeOn));
+  function setTransport(mode) {
+    if (mode === currentMode()) { stopAll(); return; }   // tap active = stop
+    if (mode === 'play') {
+      if (isPlaying && metronomeOn) setMetronome(false);      // drop the click, keep the track
+      else { if (metronomeOn) setMetronome(false); if (!isPlaying) startPlayback(); }
+    } else if (mode === 'playmetro') {
+      if (isPlaying && !metronomeOn) setMetronome(true);      // add the click to the running track
+      else { metronomeOn = true; if (!isPlaying) startPlayback(); }  // start track with aligned click + count-in
+    } else if (mode === 'metro') {
+      if (isPlaying) stopPlayback();                           // drop the track
+      setMetronome(true);                                      // (re)start the click standalone at live BPM
+    }
+    updateTransportUI();
+  }
+
+  document.getElementById('tp-play').addEventListener('click', () => setTransport('play'));
+  document.getElementById('tp-playmetro').addEventListener('click', () => setTransport('playmetro'));
+  document.getElementById('tp-metro').addEventListener('click', () => setTransport('metro'));
 
   document.getElementById('speed-range').addEventListener('input', e => {
     document.getElementById('speed-label').textContent = e.target.value + '%';
