@@ -81,48 +81,48 @@
       <li>Set your <strong>key</strong>, <strong>meter</strong>, and <strong>tuning</strong> at the top.</li>
       <li>Click <strong>Start a Chart</strong>, then click fretboard notes — each one becomes a number.</li>
       <li>Drag on the beat grid to set how long a chord lasts; add quality (minor, 7th…), a slash note, or a measure note.</li>
-      <li>Group your chart into <strong>+ Section</strong>s (Intro, Verse, Chorus…).</li>
-      <li><strong>Save</strong> downloads a backup file; <strong>View Chart</strong> opens a printable page.</li>
+      <li>Use the <strong>＋</strong> on a section (or <strong>＋ Add section</strong> at the bottom) to add sections like Verse and Chorus; click a section name to rename it.</li>
+      <li>The <strong>File</strong> menu holds Save, Load, Copy, View Chart, and Clear. <strong>Save</strong> downloads a backup file; <strong>View Chart</strong> opens a printable page.</li>
     </ol>
   </details>
 </section>
 
 <section class="transcribe-panel hidden" id="transcribe-panel">
   <div class="panel-toolbar">
-    <div class="panel-meta">
-      <input class="meta-input" id="song-title" type="text" placeholder="Song title…">
-      <input class="meta-input" id="song-writer" type="text" placeholder="Writer / Composer (optional)">
-      <input class="meta-input" id="song-tempo" type="text" placeholder="Tempo (e.g. 120 BPM)">
+    <div class="toolbar-left">
+      <input class="meta-input meta-narrow" id="song-title" type="text" placeholder="Song title…">
+      <input class="meta-input meta-narrow" id="song-writer" type="text" placeholder="Writer (optional)">
     </div>
-    <div class="panel-actions">
-      <div class="section-row">
-        <input class="section-input" id="section-name" type="text" placeholder="Section (Intro, Verse…)">
-        <button class="btn" id="add-section-btn">+ Section</button>
-      </div>
-      <div class="section-row">
-        <button class="btn" id="play-btn">&#9654; Play</button>
-        <button class="btn" id="metro-btn" title="Click metronome during playback">&#9834; Metro</button>
-        <div class="ctrl-group">
-          <label class="ctrl-label" for="bpm-input">BPM</label>
-          <input class="bpm-input" id="bpm-input" type="number" min="40" max="300" value="120">
-        </div>
-        <div class="ctrl-group">
-          <label class="ctrl-label" for="speed-range">Speed</label>
-          <input type="range" id="speed-range" min="25" max="150" value="100" step="5" class="speed-range">
-          <span id="speed-label" class="speed-label">100%</span>
+    <div class="toolbar-right">
+      <div class="menu" id="file-menu">
+        <button class="btn menu-btn" id="file-menu-btn" aria-haspopup="true" aria-expanded="false">File ▾</button>
+        <div class="menu-list" id="file-menu-list" hidden role="menu">
+          <button class="menu-item" id="save-btn" role="menuitem">&#8681; Save…</button>
+          <button class="menu-item" id="load-btn" role="menuitem">&#8679; Load…</button>
+          <button class="menu-item" id="copy-btn" role="menuitem">Copy Chart</button>
+          <button class="menu-item" id="view-btn" role="menuitem">View Chart</button>
+          <div class="menu-sep"></div>
+          <button class="menu-item danger" id="clear-btn" role="menuitem">Clear chart</button>
         </div>
       </div>
-      <button class="btn" id="undo-btn" title="Undo (⌘Z)">Undo</button>
-      <button class="btn" id="redo-btn" title="Redo (⌘⇧Z)">Redo</button>
-      <button class="btn" id="repeat-bar-btn" title="Insert a multi-bar repeat symbol">% Bar</button>
-      <button class="btn active" id="copy-btn">Copy Chart</button>
-      <button class="btn" id="view-btn">View Chart</button>
-      <div class="section-row">
-        <button class="btn" id="save-btn">&#8681; Save</button>
-        <button class="btn" id="load-btn">&#8679; Load</button>
-        <input type="file" id="load-input" accept=".json" style="display:none">
-      </div>
-      <button class="btn danger" id="clear-btn">Clear</button>
+      <button class="btn icon-btn" id="undo-btn" title="Undo (⌘Z)" aria-label="Undo">&#8630;</button>
+      <button class="btn icon-btn" id="redo-btn" title="Redo (⌘⇧Z)" aria-label="Redo">&#8631;</button>
+      <button class="btn icon-btn" id="repeat-bar-btn" title="Insert a repeat-measure symbol (%) — repeats the previous bar" aria-label="Insert repeat-measure symbol">%</button>
+      <input type="file" id="load-input" accept=".json" style="display:none">
+    </div>
+  </div>
+
+  <div class="transport-group">
+    <button class="btn" id="play-btn">&#9654; Play</button>
+    <button class="btn" id="metro-btn" title="Click metronome during playback">&#9834; Metro</button>
+    <div class="ctrl-group">
+      <label class="ctrl-label" for="bpm-input">BPM</label>
+      <input class="bpm-input" id="bpm-input" type="number" min="40" max="300" value="120">
+    </div>
+    <div class="ctrl-group">
+      <label class="ctrl-label" for="speed-range">Speed</label>
+      <input type="range" id="speed-range" min="25" max="150" value="100" step="5" class="speed-range">
+      <span id="speed-label" class="speed-label">100%</span>
     </div>
   </div>
 

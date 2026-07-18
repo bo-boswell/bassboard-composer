@@ -560,6 +560,22 @@
   // Keep the chart width matched to the fretboard as the window resizes
   window.addEventListener('resize', syncBoardWidth);
 
+  // File dropdown menu
+  const fileMenu     = document.getElementById('file-menu');
+  const fileMenuBtn  = document.getElementById('file-menu-btn');
+  const fileMenuList = document.getElementById('file-menu-list');
+  function closeFileMenu() { fileMenuList.hidden = true; fileMenuBtn.setAttribute('aria-expanded', 'false'); }
+  fileMenuBtn.addEventListener('click', e => {
+    e.stopPropagation();
+    const willOpen = fileMenuList.hidden;
+    fileMenuList.hidden = !willOpen;
+    fileMenuBtn.setAttribute('aria-expanded', String(willOpen));
+  });
+  fileMenuList.addEventListener('click', () => closeFileMenu());  // close after any item runs
+  // Capture phase so the panel's stopPropagation can't hide outside clicks from us
+  document.addEventListener('click', e => { if (!fileMenu.contains(e.target)) closeFileMenu(); }, true);
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') closeFileMenu(); });
+
   /* ── First-run intro + sample chart ──────────────── */
 
   // A recognizable, public-domain hymn so newcomers see a finished chart.
@@ -606,10 +622,6 @@
 
   function addEntry(noteMidi, fullMeasure = false) {
     const sec = chart.sections[chart.currentSec];
-    if (sec.entries.length === 0 && !sec.name) {
-      const v = document.getElementById('section-name').value.trim();
-      if (v) sec.name = v;
-    }
     const totalCells  = sec.entries.reduce((s, e) => s + e.duration, 0);
     const usedInBar   = totalCells % chart.cellsPerBar;
     const remaining   = usedInBar === 0 ? chart.cellsPerBar : chart.cellsPerBar - usedInBar;
@@ -935,22 +947,23 @@
 
   function renderChart() {
     const display = document.getElementById('chart-display');
-    const hasContent = chart.sections.some(s => s.entries.length > 0 || s.name);
 
-    if (!hasContent) {
-      display.innerHTML = '<div class="chart-empty">Click notes on the fretboard to start building your chart.</div>';
-      document.getElementById('entry-editor').classList.add('hidden');
-      return;
-    }
+    // Drop orphan empty+unnamed sections (keep the current one and at least one),
+    // remapping current/loop by identity so their indices stay correct.
+    const cur    = chart.sections[chart.currentSec];
+    const looped = chart.loopSection !== null ? chart.sections[chart.loopSection] : null;
+    chart.sections = chart.sections.filter(s => s.entries.length || s.name || s === cur);
+    if (!chart.sections.length) chart.sections = [newSection()];
+    chart.currentSec  = Math.max(0, chart.sections.indexOf(cur));
+    chart.loopSection = looped && chart.sections.indexOf(looped) >= 0 ? chart.sections.indexOf(looped) : null;
 
     display.innerHTML = '';
 
-    chart.sections.forEach(sec => {
-      if (!sec.entries.length && !sec.name) return;
+    chart.sections.forEach((sec, secIdx) => {
+      // Render sections that have content, plus the current one even if empty
+      if (!sec.entries.length && !sec.name && secIdx !== chart.currentSec) return;
       const block = document.createElement('div');
       block.className = 'section-block';
-
-      const secIdx = chart.sections.indexOf(sec);
 
       const hdr = document.createElement('div');
       hdr.className = 'section-header';
@@ -960,6 +973,7 @@
       h.className = 'section-name-input';
       h.placeholder = 'Section name…';
       h.value = sec.name;
+      h.dataset.sec = secIdx;
       h.setAttribute('aria-label', 'Section name');
       const commitName = () => { sec.name = h.value.trim(); autosave(); };
       h.addEventListener('change', commitName);
@@ -1004,10 +1018,25 @@
       downBtn.addEventListener('click', e => { e.stopPropagation(); moveSection(secIdx, +1); });
       ctrls.appendChild(downBtn);
 
+      const addBtn = document.createElement('button');
+      addBtn.className = 'sec-btn';
+      addBtn.textContent = '＋';
+      addBtn.title = 'Add a section below this one';
+      addBtn.setAttribute('aria-label', 'Add a section below this one');
+      addBtn.addEventListener('click', e => { e.stopPropagation(); addSectionAfter(secIdx); });
+      ctrls.appendChild(addBtn);
+
       hdr.appendChild(ctrls);
       block.appendChild(hdr);
 
-      if (!sec.entries.length) { display.appendChild(block); return; }
+      if (!sec.entries.length) {
+        const hint = document.createElement('div');
+        hint.className = 'sec-empty-hint';
+        hint.textContent = 'Click fretboard notes to add chords to this section.';
+        block.appendChild(hint);
+        display.appendChild(block);
+        return;
+      }
 
       const bars       = groupIntoBars(sec.entries, chart.cellsPerBar);
       const breaksSet  = new Set(sec.breaks || []);
@@ -1081,6 +1110,16 @@
 
       display.appendChild(block);
     });
+
+    // Bottom "add section" affordance — always sits where the next section goes
+    const addRow = document.createElement('div');
+    addRow.className = 'add-section-row';
+    const addEndBtn = document.createElement('button');
+    addEndBtn.className = 'add-section-btn';
+    addEndBtn.textContent = '＋ Add section';
+    addEndBtn.addEventListener('click', e => { e.stopPropagation(); addSectionAtEnd(); });
+    addRow.appendChild(addEndBtn);
+    display.appendChild(addRow);
 
     renderEntryEditor();
   }
@@ -1166,20 +1205,34 @@
     };
   }
 
-  /* ── Panel button handlers ───────────────────────── */
+  /* ── Section add/focus ───────────────────────────── */
 
-  document.getElementById('add-section-btn').addEventListener('click', () => {
-    const name = document.getElementById('section-name').value.trim();
-    const cur  = chart.sections[chart.currentSec];
-    if (cur.entries.length === 0) {
-      cur.name = name || cur.name;
-    } else {
-      chart.sections.push({ name, entries: [], breaks: [], barNotes: {} });
-      chart.currentSec = chart.sections.length - 1;
-    }
-    document.getElementById('section-name').value = '';
+  function focusSectionName(idx) {
+    const el = document.querySelector(`.section-name-input[data-sec="${idx}"]`);
+    if (el) { el.focus(); el.select(); }
+  }
+
+  function newSection() { return { name: '', entries: [], breaks: [], barNotes: {} }; }
+
+  function addSectionAfter(idx) {
+    chart.sections.splice(idx + 1, 0, newSection());
+    if (chart.loopSection !== null && chart.loopSection > idx) chart.loopSection++;
+    chart.currentSec = idx + 1;
     renderChart();
-  });
+    focusSectionName(idx + 1);
+  }
+
+  function addSectionAtEnd() {
+    const last = chart.sections[chart.sections.length - 1];
+    if (!(last && !last.entries.length && !last.name)) {
+      chart.sections.push(newSection());
+    }
+    chart.currentSec = chart.sections.length - 1;
+    renderChart();
+    focusSectionName(chart.currentSec);
+  }
+
+  /* ── Panel button handlers ───────────────────────── */
 
   document.getElementById('undo-btn').addEventListener('click', doUndo);
   document.getElementById('redo-btn').addEventListener('click', doRedo);
@@ -1275,14 +1328,11 @@
     const lines   = [];
     const title   = document.getElementById('song-title').value.trim();
     const writer  = document.getElementById('song-writer').value.trim();
-    const tempo   = document.getElementById('song-tempo').value.trim();
     const keyName = KEY_NAMES[chart.keyMidi];
 
     if (title)  lines.push(title);
     if (writer) lines.push(writer);
-    const meta = [`Key: ${keyName}`, `Time: ${chart.timeSig}`];
-    if (tempo) meta.push(`Tempo: ${tempo}`);
-    lines.push(meta.join(' | '));
+    lines.push([`Tempo: ${currentBpm()}`, `Time: ${chart.timeSig}`, `Key: ${keyName}`].join(' | '));
     lines.push('');
 
     chart.sections.forEach(sec => {
@@ -1314,14 +1364,11 @@
     const lines   = [];
     const title   = document.getElementById('song-title').value.trim();
     const writer  = document.getElementById('song-writer').value.trim();
-    const tempo   = document.getElementById('song-tempo').value.trim();
     const keyName = KEY_NAMES[chart.keyMidi];
 
     if (title)  lines.push(`<b>${escHtml(title)}</b>`);
     if (writer) lines.push(`<i>${escHtml(writer)}</i>`);
-    const meta = [`Key: ${keyName}`, `Time: ${chart.timeSig}`];
-    if (tempo) meta.push(`Tempo: ${tempo}`);
-    lines.push(escHtml(meta.join(' | ')));
+    lines.push(escHtml([`Tempo: ${currentBpm()}`, `Time: ${chart.timeSig}`, `Key: ${keyName}`].join(' | ')));
     lines.push('');
 
     chart.sections.forEach(sec => {
@@ -1348,7 +1395,6 @@
   }
 
   async function copyChart() {
-    const btn = document.getElementById('copy-btn');
     try {
       await navigator.clipboard.write([new ClipboardItem({
         'text/plain': new Blob([generateOutput()],     { type: 'text/plain' }),
@@ -1365,24 +1411,18 @@
         document.body.removeChild(ta);
       }
     }
-    const orig = btn.textContent;
-    btn.textContent = 'Copied!';
-    setTimeout(() => btn.textContent = orig, 1500);
+    showToast('Chart copied to clipboard');
   }
 
   function viewChart() {
     const title   = document.getElementById('song-title').value.trim();
     const writer  = document.getElementById('song-writer').value.trim();
-    const tempo   = document.getElementById('song-tempo').value.trim();
     const keyName = KEY_NAMES[chart.keyMidi];
 
     let headerHtml = '';
     if (title)  headerHtml += `<h1>${escHtml(title)}</h1>`;
     if (writer) headerHtml += `<p class="writer">${escHtml(writer)}</p>`;
-    const metaParts = [];
-    if (tempo) metaParts.push(`Tempo: ${tempo}`);
-    metaParts.push(`Time: ${chart.timeSig}`);
-    metaParts.push(`Key: ${keyName}`);
+    const metaParts = [`Tempo: ${currentBpm()}`, `Time: ${chart.timeSig}`, `Key: ${keyName}`];
     headerHtml += `<p class="chart-meta">${escHtml(metaParts.join('  |  '))}</p>`;
 
     // Build each section as a flowing number-chart block: bold name + chord
@@ -1499,7 +1539,6 @@ ${bodyHtml}
       version:    1,
       title:      document.getElementById('song-title').value,
       writer:     document.getElementById('song-writer').value,
-      tempo:      document.getElementById('song-tempo').value,
       keyMidi:    chart.keyMidi,
       timeSig:    chart.timeSig,
       tuning:     chart.tuning,
@@ -1546,7 +1585,6 @@ ${bodyHtml}
     if (!isValidSnapshot(data)) return false;
     document.getElementById('song-title').value  = data.title  || '';
     document.getElementById('song-writer').value = data.writer || '';
-    document.getElementById('song-tempo').value  = data.tempo  || '';
     chart.keyMidi      = data.keyMidi;
     chart.timeSig      = data.timeSig;
     chart.tuning       = TUNINGS[data.tuning] ? data.tuning : 'standard';
@@ -1755,8 +1793,8 @@ ${bodyHtml}
     if (e.target.files[0]) { loadChart(e.target.files[0]); e.target.value = ''; }
   });
 
-  // Autosave typed song details as they change (title/writer/tempo/bpm aren't part of chart mutations)
-  ['song-title', 'song-writer', 'song-tempo', 'bpm-input'].forEach(id =>
+  // Autosave typed song details as they change (title/writer/bpm aren't part of chart mutations)
+  ['song-title', 'song-writer', 'bpm-input'].forEach(id =>
     document.getElementById(id).addEventListener('input', autosave));
 
   // Autosave on any chart mutation
