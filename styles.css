@@ -165,7 +165,7 @@
       box-shadow: 0 4px 18px rgba(0,0,0,0.4);
       opacity: 0; pointer-events: none;
       transition: opacity 0.2s, transform 0.2s;
-      z-index: 50;
+      z-index: 70;
     }
     .status-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
 
@@ -614,13 +614,17 @@
 
     /* ── Entry editor ─────────────────────────────────── */
     .entry-editor {
+      position: fixed;
+      left: 0; right: 0; bottom: 0;
+      z-index: 60;
       display: flex;
       align-items: center;
       flex-wrap: wrap;
       gap: 16px;
-      padding: 12px 0 4px;
-      border-top: 1px solid var(--fret-line);
-      margin-top: 8px;
+      padding: 12px 20px;
+      background: var(--surface);
+      border-top: 2px solid var(--accent);
+      box-shadow: 0 -6px 22px rgba(0,0,0,0.45);
     }
 
     .entry-editor.hidden { display: none; }

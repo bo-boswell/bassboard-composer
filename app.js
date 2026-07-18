@@ -1181,7 +1181,7 @@
     const activeId = chart.selectedId !== null ? chart.selectedId : chart.lastAddedId;
     const entry  = activeId !== null ? findEntry(activeId) : null;
 
-    if (!entry) { editor.classList.add('hidden'); return; }
+    if (!entry) { editor.classList.add('hidden'); reserveForEditor(); return; }
 
     if (entry.degree === '%') {
       editor.classList.remove('hidden');
@@ -1195,6 +1195,7 @@
       document.getElementById('qual-btns').innerHTML = '';
       document.getElementById('slash-input').value = '';
       document.getElementById('measure-note-input').value = '';
+      reserveForEditor();
       return;
     }
 
@@ -1255,6 +1256,16 @@
       else delete barLoc.sec.barNotes[barLoc.barIdx];
       autosave();
     };
+
+    reserveForEditor();
+  }
+
+  // The Entry Editor is docked to the bottom of the window; reserve page space
+  // beneath the chart so it never covers the last section.
+  function reserveForEditor() {
+    const editor = document.getElementById('entry-editor');
+    document.body.style.paddingBottom =
+      editor.classList.contains('hidden') ? '' : (editor.offsetHeight + 24) + 'px';
   }
 
   /* ── Section add/focus ───────────────────────────── */
