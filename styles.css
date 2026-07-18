@@ -104,13 +104,6 @@
       flex: 0 1 auto;
     }
 
-    /* Play-mode segmented toggle (Track / Metronome) */
-    .mode-toggle { display: inline-flex; }
-    .mode-btn { border-radius: 0; }
-    .mode-btn:first-child { border-radius: 8px 0 0 8px; }
-    .mode-btn:last-child  { border-radius: 0 8px 8px 0; border-left: none; }
-    .mode-btn.active { background: #1b3a3e; border-color: var(--accent); color: var(--accent); }
-
     /* Merged transpose control (♭ / ♯) to the right of the Key selector */
     .transpose-control { display: inline-flex; }
     .transpose-control .xpose-btn { border-radius: 0; }

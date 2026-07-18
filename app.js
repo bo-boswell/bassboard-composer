@@ -184,7 +184,20 @@
   let isPlaying        = false;
   let playbackTimeouts = [];
   let metronomeOn      = false;
-  let playMode         = 'track';  // 'track' plays the chart; 'metronome' plays the click only
+
+  // Track beat-grid anchor (so a mid-track metronome toggle lines up with the chart)
+  let trackStartTime = 0, trackSpc = 0;
+
+  // Independent metronome scheduler (look-ahead), so it can start/stop at any time
+  let metroTimer = null, metroNextTime = 0, metroCell = 0, metroFixedSpc = 0;
+  const METRO_LOOKAHEAD = 0.12;   // schedule this many seconds ahead
+  const METRO_INTERVAL  = 25;     // scheduler tick in ms
+
+  function currentSpc() {
+    const rawBpm = Math.max(40, Math.min(300, parseInt(document.getElementById('bpm-input').value) || 120));
+    const speed  = (parseInt(document.getElementById('speed-range').value) || 100) / 100;
+    return secsPerCell(rawBpm * speed);
+  }
 
   function scheduleClick(time, accent, medium) {
     const ctx  = audioCtx;
@@ -199,9 +212,54 @@
     gain.gain.linearRampToValueAtTime(vol,   time + 0.002);
     gain.gain.exponentialRampToValueAtTime(0.001, time + 0.065);
     osc.connect(gain);
-    gain.connect(ensureMasterGain());
+    gain.connect(ctx.destination);   // independent of the track, so it survives track stop
     osc.start(time);
     osc.stop(time + 0.075);
+  }
+
+  function metroScheduler() {
+    const spc = metroFixedSpc > 0 ? metroFixedSpc : currentSpc();
+    const pattern = METRO_ACCENT[chart.timeSig] || METRO_ACCENT['4/4'];
+    while (metroNextTime < audioCtx.currentTime + METRO_LOOKAHEAD) {
+      const level = pattern[metroCell % chart.cellsPerBar] || 'soft';
+      scheduleClick(metroNextTime, level === 'strong', level === 'medium');
+      metroNextTime += spc;
+      metroCell++;
+    }
+  }
+
+  function restartMetroInterval() {
+    if (metroTimer) clearInterval(metroTimer);
+    metroTimer = setInterval(metroScheduler, METRO_INTERVAL);
+    metroScheduler();
+  }
+
+  // Start the metronome. If a track is playing, lock to its beat grid; otherwise
+  // click from now at the live BPM.
+  function startMetronome() {
+    ensureAudio();
+    const now = audioCtx.currentTime;
+    if (isPlaying && trackSpc > 0) {
+      const n = Math.max(0, Math.ceil((now + 0.06 - trackStartTime) / trackSpc));
+      metroNextTime = trackStartTime + n * trackSpc;
+      metroCell = n;
+      metroFixedSpc = trackSpc;
+    } else {
+      metroNextTime = now + 0.08;
+      metroCell = 0;
+      metroFixedSpc = 0;  // 0 = follow the live BPM
+    }
+    restartMetroInterval();
+  }
+
+  function stopMetronome() {
+    if (metroTimer) { clearInterval(metroTimer); metroTimer = null; }
+  }
+
+  function setMetronome(on) {
+    metronomeOn = on;
+    document.getElementById('metro-btn').classList.toggle('active', metronomeOn);
+    if (metronomeOn) startMetronome(); else stopMetronome();
   }
 
   function updatePlayBtn() {
@@ -232,15 +290,10 @@
 
   function startPlayback() {
     const hasEntries = chart.sections.some(s => s.entries.length > 0);
-    // Metronome-only when the user picked that mode, or when there's no chart to play
-    const metronomeOnly = playMode === 'metronome' || !hasEntries;
-    if (playMode === 'track' && !hasEntries && !metronomeOn) return;
+    if (!hasEntries) return;  // nothing to play; the metronome is its own button now
     ensureAudio();
 
-    const rawBpm = Math.max(40, Math.min(300, parseInt(document.getElementById('bpm-input').value) || 120));
-    const speed  = (parseInt(document.getElementById('speed-range').value) || 100) / 100;
-    const bpm    = rawBpm * speed;
-    const spc    = secsPerCell(bpm);
+    const spc = currentSpc();
 
     isPlaying = true;
     updatePlayBtn();
@@ -248,22 +301,18 @@
     const mg = ensureMasterGain();
     mg.gain.setValueAtTime(1, audioCtx.currentTime);
 
-    if (metronomeOnly) {
-      const pattern = METRO_ACCENT[chart.timeSig] || METRO_ACCENT['4/4'];
-      const end = audioCtx.currentTime + 0.05 + 480;
-      let mt = audioCtx.currentTime + 0.05, cell = 0;
-      while (mt < end) {
-        const level = pattern[cell % chart.cellsPerBar] || 'soft';
-        scheduleClick(mt, level === 'strong', level === 'medium');
-        mt += spc; cell++;
-      }
-      return;
+    // Anchor the beat grid. If the metronome is on, lead in with one full bar of
+    // count-in and (re)start the metronome locked to this grid so clicks align.
+    const gridStart   = audioCtx.currentTime + 0.05;
+    const countInSecs = metronomeOn ? chart.cellsPerBar * spc : 0;
+    trackStartTime = gridStart;
+    trackSpc       = spc;
+    if (metronomeOn) {
+      metroNextTime = gridStart; metroCell = 0; metroFixedSpc = spc;
+      restartMetroInterval();
     }
 
-    // One full bar of count-in, so the downbeat accent lands on the first chart beat
-    // in every meter (the old fixed 4-beat count-in misfired in 3/4 and 6/8).
-    const countInSecs = metronomeOn ? chart.cellsPerBar * spc : 0;
-    let t = audioCtx.currentTime + 0.05 + countInSecs;
+    let t = gridStart + countInSecs;
 
     const loopIdx  = chart.loopSection;
     const loopReps = loopIdx !== null ? 8 : 1;
@@ -287,16 +336,6 @@
             t += entry.duration * spc;
           }
         }
-      }
-    }
-
-    if (metronomeOn) {
-      const pattern = METRO_ACCENT[chart.timeSig] || METRO_ACCENT['4/4'];
-      let mt = audioCtx.currentTime + 0.05, cell = 0;
-      while (mt < t) {
-        const level = pattern[cell % chart.cellsPerBar] || 'soft';
-        scheduleClick(mt, level === 'strong', level === 'medium');
-        mt += spc; cell++;
       }
     }
 
@@ -1315,22 +1354,9 @@
     if (isPlaying) stopPlayback(); else startPlayback();
   });
 
-  document.getElementById('metro-btn').addEventListener('click', () => {
-    metronomeOn = !metronomeOn;
-    document.getElementById('metro-btn').classList.toggle('active', metronomeOn);
-  });
-
-  // Play mode: Track (plays the chart) vs Metronome (click only)
-  function setPlayMode(mode) {
-    playMode = mode === 'metronome' ? 'metronome' : 'track';
-    if (isPlaying) stopPlayback();
-    document.getElementById('mode-track-btn').classList.toggle('active', playMode === 'track');
-    document.getElementById('mode-metro-btn').classList.toggle('active', playMode === 'metronome');
-    // The "click along with the track" toggle only applies in Track mode
-    document.getElementById('metro-btn').disabled = playMode === 'metronome';
-  }
-  document.getElementById('mode-track-btn').addEventListener('click', () => setPlayMode('track'));
-  document.getElementById('mode-metro-btn').addEventListener('click', () => setPlayMode('metronome'));
+  // Metronome: an independent click that can be toggled on/off at any time —
+  // standalone or layered over a playing track (it locks to the chart's beat grid).
+  document.getElementById('metro-btn').addEventListener('click', () => setMetronome(!metronomeOn));
 
   document.getElementById('speed-range').addEventListener('input', e => {
     document.getElementById('speed-label').textContent = e.target.value + '%';
