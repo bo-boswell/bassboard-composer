@@ -32,6 +32,12 @@ D12 (`break-inside:avoid` on sections/rows for clean page breaks), D13 (blocked-
 Print baselines in `private/baseline/` were intentionally regenerated to the new M6 layout —
 that is now the regression baseline for future milestones. Verified by `verify-m6.mjs` (14 checks).
 
+**Fixed post-M6 (2026-07-17, Bo-found on live site):** D22 — print barlines didn't line up
+into vertical columns because bars with split chords rendered slightly wider than single-chord
+bars (grid tracks grew to content). Fixed by locking every bar to a fixed width with even
+`1fr` columns + `min-width:0` on chords. Verified by high-res render of the real 6/8 chart:
+barlines now align in both one- and two-column layouts. Baselines regenerated.
+
 **Still open:** D19, D20 → M8 (favicon/meta, localStorage key namespacing).
 D21 addressed by the in-app storage note. All P0–P1 defects resolved.
 

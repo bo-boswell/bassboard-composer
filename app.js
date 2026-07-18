@@ -1356,7 +1356,8 @@
     headerHtml += `<p class="chart-meta">${escHtml(metaParts.join('  ·  '))}</p>`;
 
     const cpb          = chart.cellsPerBar;
-    const cellW        = cpb >= 6 ? '1.1em' : '1.3em';
+    const cellWNum     = cpb >= 6 ? 1.1 : 1.3;
+    const barW         = (cpb * cellWNum).toFixed(2) + 'em';  // every bar is this exact width
     const BARS_PER_ROW = cpb >= 6 ? 3 : 4;
 
     // Build section data with running bar numbers
@@ -1409,7 +1410,7 @@
             return `<span class="ch" style="grid-column:span ${e.duration}">${label}</span>`;
           }).join('');
           const noteHtml = noteText ? `<div class="mnote">${escHtml(noteText)}</div>` : '';
-          return `<span class="sep">|</span><div class="bar${split ? ' sp' : ''}" style="grid-template-columns:repeat(${cpb},${cellW})">${chords}${noteHtml}</div>`;
+          return `<span class="sep">|</span><div class="bar${split ? ' sp' : ''}" style="width:${barW};grid-template-columns:repeat(${cpb},1fr)">${chords}${noteHtml}</div>`;
         }).join('');
         rowsHtml += `<div class="bar-row"><span class="bnum">${barNum}</span>${barsHtml}<span class="sep">|</span></div>`;
       }
@@ -1448,7 +1449,7 @@
   .sep { color:#aaa; font-weight:300; padding:0 0.06em; flex-shrink:0; }
   .bar { display:inline-grid; align-items:center; vertical-align:middle; }
   .bar.sp { border-bottom:1.5px solid #111; }
-  .ch { white-space:nowrap; font-weight:500; font-size:1em; }
+  .ch { white-space:nowrap; font-weight:500; font-size:1em; min-width:0; }
   .mnote { font-size:0.7em; color:#999; font-style:italic; font-weight:400; }
   sup { font-size:0.6em; vertical-align:super; line-height:0; }
   .no-print { text-align:center; margin-top:2em; }
