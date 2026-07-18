@@ -46,7 +46,7 @@ A–D — titles kept out of version control). They live locally and are git-ign
 - [ ] `[BO]` Play sounds the chart; Stop halts it.
 - [ ] `[BO]` Metronome adds an accented click.
 - [ ] `[BO]` Speed slider and section loop work.
-- [ ] `[FAIL D8]` In **3/4**, the count-in is one bar and the downbeat accent lands on beat 1. *(Count-in hardcoded to 4 beats; accent counter misaligns after it.)*
+- [x] `[PASS D8 — fixed M6]` Count-in is exactly one bar in every meter and the downbeat accent lands on beat 1 (3/4 and 6/8 fixed). *(Final confirmation is by ear — Bo.)*
 
 ## 7. Save, close, reopen, continue
 - [x] `[AUTO]` **All four fixtures load and round-trip (save → reload) with zero data loss.** ✅ passing
@@ -60,9 +60,10 @@ A–D — titles kept out of version control). They live locally and are git-ign
 - [ ] `[AUTO]` Plain-text and formatted copy generate without error. ✅ passing
 - [ ] `[AUTO]` Print view builds for all four fixtures. ✅ passing
 - [ ] `[BO]` Printed medium/long charts are rehearsal-usable. ✅ *(confirmed good for large 4/4 and 6/8 charts)*
-- [ ] `[FAIL D10]` **Short** charts (≈≤16 bars) print without an empty half-page and orphan divider.
-- [ ] `[FAIL D11]` Copied output includes the writer and all measure notes. *(Copy drops both; only Print includes them.)*
-- [ ] `[FAIL D13]` View Chart works (or warns) when the browser blocks popups.
+- [x] `[PASS D10 — fixed M6]` Short charts print as a single clean column (no empty right column / orphan divider); long charts keep two columns. Auto-switch at >16 bars.
+- [x] `[PASS D11 — fixed M6]` Copied output (plain and formatted) now includes the writer and measure notes.
+- [x] `[PASS D12 — fixed M6]` Print protects sections/rows from splitting across page breaks (`break-inside:avoid`).
+- [x] `[PASS D13 — fixed M6]` If the browser blocks the chart pop-up, View Chart shows a clear message instead of failing silently.
 
 ---
 

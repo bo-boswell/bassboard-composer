@@ -25,8 +25,15 @@ targets for touch devices via `pointer:coarse`), D18 (first-run intro panel + sa
 relabeled entry button + "how it works"). Added: status toasts, aria-labels on icon buttons,
 :focus-visible outlines. iPad touch sizing still needs a real-device pass (M6/pilot).
 
-**Still open:** D8, D10, D11, D12, D13 → M6 (Bo's flagged priority = print/PDF layout);
-D19, D20 → M8 (D21 addressed by the in-app storage note).
+**Fixed in M6 (2026-07-17):** D8 (count-in now one bar in every meter; accent realigned —
+final check by ear), D10 (auto columns: one column ≤16 bars, two columns above — short charts
+no longer leave an empty half-page), D11 (copy output includes writer + per-bar measure notes),
+D12 (`break-inside:avoid` on sections/rows for clean page breaks), D13 (blocked-popup message).
+Print baselines in `private/baseline/` were intentionally regenerated to the new M6 layout —
+that is now the regression baseline for future milestones. Verified by `verify-m6.mjs` (14 checks).
+
+**Still open:** D19, D20 → M8 (favicon/meta, localStorage key namespacing).
+D21 addressed by the in-app storage note. All P0–P1 defects resolved.
 
 ---
 

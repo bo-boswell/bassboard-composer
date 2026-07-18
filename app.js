@@ -257,7 +257,9 @@
       return;
     }
 
-    const countInSecs = metronomeOn ? 4 * spc * chart.cellsPerComp : 0;
+    // One full bar of count-in, so the downbeat accent lands on the first chart beat
+    // in every meter (the old fixed 4-beat count-in misfired in 3/4 and 6/8).
+    const countInSecs = metronomeOn ? chart.cellsPerBar * spc : 0;
     let t = audioCtx.currentTime + 0.05 + countInSecs;
 
     const loopIdx  = chart.loopSection;
@@ -1244,10 +1246,12 @@
   function generateOutput() {
     const lines   = [];
     const title   = document.getElementById('song-title').value.trim();
+    const writer  = document.getElementById('song-writer').value.trim();
     const tempo   = document.getElementById('song-tempo').value.trim();
     const keyName = KEY_NAMES[chart.keyMidi];
 
-    if (title) lines.push(title);
+    if (title)  lines.push(title);
+    if (writer) lines.push(writer);
     const meta = [`Key: ${keyName}`, `Time: ${chart.timeSig}`];
     if (tempo) meta.push(`Tempo: ${tempo}`);
     lines.push(meta.join(' | '));
@@ -1256,8 +1260,9 @@
     chart.sections.forEach(sec => {
       if (!sec.entries.length) return;
       if (sec.name) lines.push(sec.name);
+      const barNotes = sec.barNotes || {};
 
-      const barStrs = groupIntoBars(sec.entries, chart.cellsPerBar).map(bar => {
+      const barStrs = groupIntoBars(sec.entries, chart.cellsPerBar).map((bar, barIdx) => {
         const cells = [];
         const split = bar.length > 1;
         bar.forEach(e => {
@@ -1267,7 +1272,8 @@
           // Underline only the chord symbol, ticks stay outside the combining chars
           cells.push(split ? underlineNNS(sym) + tick : sym + tick);
         });
-        return cells.join('  ');
+        const note = barNotes[barIdx];
+        return cells.join('  ') + (note ? ` (${note})` : '');
       });
 
       barStringsToLines(barStrs, sec.breaks).forEach(l => lines.push(l));
@@ -1279,10 +1285,12 @@
   function generateOutputHTML() {
     const lines   = [];
     const title   = document.getElementById('song-title').value.trim();
+    const writer  = document.getElementById('song-writer').value.trim();
     const tempo   = document.getElementById('song-tempo').value.trim();
     const keyName = KEY_NAMES[chart.keyMidi];
 
-    if (title) lines.push(`<b>${escHtml(title)}</b>`);
+    if (title)  lines.push(`<b>${escHtml(title)}</b>`);
+    if (writer) lines.push(`<i>${escHtml(writer)}</i>`);
     const meta = [`Key: ${keyName}`, `Time: ${chart.timeSig}`];
     if (tempo) meta.push(`Tempo: ${tempo}`);
     lines.push(escHtml(meta.join(' | ')));
@@ -1291,15 +1299,18 @@
     chart.sections.forEach(sec => {
       if (!sec.entries.length) return;
       if (sec.name) lines.push(`<b>${escHtml(sec.name)}</b>`);
+      const barNotes = sec.barNotes || {};
 
-      const barStrs = groupIntoBars(sec.entries, chart.cellsPerBar).map(bar => {
+      const barStrs = groupIntoBars(sec.entries, chart.cellsPerBar).map((bar, barIdx) => {
         const split = bar.length > 1;
         const syms  = bar.map(e => {
           const sym   = escHtml(getEntrySymbol(e));
           const ticks = getTickCount(e, bar);
           return ticks > 0 ? `${sym}<sup>${tickStr(ticks)}</sup>` : sym;
         });
-        return split ? `<u>${syms.join('  ')}</u>` : syms[0];
+        const grouped = split ? `<u>${syms.join('  ')}</u>` : syms[0];
+        const note = barNotes[barIdx];
+        return note ? `${grouped} <span style="color:#888;font-style:italic">(${escHtml(note)})</span>` : grouped;
       });
 
       barStringsToLines(barStrs, sec.breaks).forEach(l => lines.push(l));
@@ -1360,19 +1371,26 @@
       globalBarNum += bars.length;
     });
 
-    // Split sections into two columns (roughly equal bar counts, never mid-section)
+    // Use two columns only when there's enough content to fill them; short
+    // charts stay single-column so they don't leave an empty right half.
     const totalBars = allSecs.reduce((s, sec) => s + sec.bars.length, 0);
-    const target    = Math.ceil(totalBars / 2);
-    const leftSecs  = [], rightSecs = [];
-    let count = 0, splitDone = false;
-    for (const sec of allSecs) {
-      if (!splitDone) {
-        leftSecs.push(sec);
-        count += sec.bars.length;
-        if (count >= target) splitDone = true;
-      } else {
-        rightSecs.push(sec);
+    const useTwoCols = totalBars > 16;
+
+    const leftSecs = [], rightSecs = [];
+    if (useTwoCols) {
+      const target = Math.ceil(totalBars / 2);
+      let count = 0, splitDone = false;
+      for (const sec of allSecs) {
+        if (!splitDone) {
+          leftSecs.push(sec);
+          count += sec.bars.length;
+          if (count >= target) splitDone = true;
+        } else {
+          rightSecs.push(sec);
+        }
       }
+    } else {
+      leftSecs.push(...allSecs);
     }
 
     function renderSection(sec) {
@@ -1417,9 +1435,12 @@
   .chart-header .chart-meta { font-size:0.8em; color:#777; }
   .chart-body { display:flex; align-items:flex-start; }
   .col { flex:1; min-width:0; }
-  .col:first-child { padding-right:2em; border-right:1px solid #ccc; }
-  .col:last-child  { padding-left:2em; }
-  .chart-sec { margin-bottom:1.1em; }
+  .chart-body.two-col .col:first-child { padding-right:2em; border-right:1px solid #ccc; }
+  .chart-body.two-col .col:last-child  { padding-left:2em; }
+  .chart-body.one-col { justify-content:flex-start; }
+  .chart-body.one-col .col { flex:0 1 auto; max-width:34em; }
+  .chart-sec { margin-bottom:1.1em; break-inside:avoid; }
+  .bar-row { break-inside:avoid; }
   .sec-hdr { margin-bottom:0.1em; }
   .sec-abbr { font-size:0.68em; font-weight:700; color:#555; text-transform:uppercase; letter-spacing:0.06em; }
   .bar-row { display:flex; align-items:center; line-height:2.2; margin-bottom:0.05em; flex-wrap:nowrap; }
@@ -1442,9 +1463,9 @@
 </head>
 <body>
 <div class="chart-header">${headerHtml}</div>
-<div class="chart-body">
+<div class="chart-body ${useTwoCols ? 'two-col' : 'one-col'}">
   <div class="col">${leftHtml}</div>
-  <div class="col">${rightHtml}</div>
+  ${useTwoCols ? `<div class="col">${rightHtml}</div>` : ''}
 </div>
 <div class="print-bar no-print">
   <button onclick="window.print()" class="print-btn">🖨 Print / Save as PDF</button>
@@ -1452,6 +1473,10 @@
 </body></html>`;
 
     const w = window.open('', '_blank');
+    if (!w) {
+      showToast('Your browser blocked the chart window. Allow pop-ups for this page, or use Copy Chart.');
+      return;
+    }
     w.document.write(html);
     w.document.close();
   }
