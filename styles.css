@@ -53,9 +53,9 @@
     .sec-btn:hover { background: #2d3148; border-color: var(--accent); }
     .sec-btn.active { background: #1b3a3e; border-color: var(--accent); color: var(--accent); }
     .sec-btn:disabled { opacity: 0.35; cursor: default; background: var(--surface2); border-color: var(--fret-line); }
+    .sec-btn.sec-del:hover { background: #3a1515; border-color: #ff7070; color: #ff7070; }
 
-    /* Center the panel content at the fretboard width for visual consistency */
-    .panel-toolbar,
+    /* Center the chart at the fretboard width; the toolbar spans full width */
     .chart-display { max-width: var(--board-w, 100%); margin-left: auto; margin-right: auto; }
 
     /* ── Collapsible fretboard ────────────────────────── */
@@ -69,14 +69,14 @@
     .board-toggle-btn:hover { color: var(--text); border-color: var(--accent); }
     body.board-collapsed main { display: none; }
 
-    /* ── Compact toolbar: meta left, File menu + quick actions right ── */
+    /* ── Full-width toolbar: File/edit left · transport center · title/writer right ── */
     .panel-toolbar {
-      display: flex; align-items: flex-start; justify-content: space-between;
-      gap: 12px; flex-wrap: wrap; margin-bottom: 12px;
+      display: flex; align-items: center; justify-content: space-between;
+      gap: 12px 16px; flex-wrap: wrap; margin-bottom: 14px;
     }
-    .toolbar-left { display: flex; gap: 8px; flex-wrap: wrap; flex: 1; min-width: 0; }
-    .meta-narrow { width: 200px; max-width: 34%; flex: 0 1 200px; }
-    .toolbar-right { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+    .toolbar-left { display: flex; align-items: center; gap: 6px; flex: 0 0 auto; }
+    .toolbar-right { display: flex; align-items: center; gap: 8px; flex: 0 0 auto; }
+    .meta-narrow { width: 190px; flex: 0 1 190px; }
     .icon-btn { min-width: 34px; text-align: center; font-size: 0.95rem; padding: 5px 10px; }
 
     /* File dropdown */
@@ -97,12 +97,18 @@
     .menu-item.danger:hover { background: #3a1515; }
     .menu-sep { height: 1px; background: var(--fret-line); margin: 4px 2px; }
 
-    /* Transport group (Play / Metro / BPM / Speed) */
+    /* Transport group (Time / Play / Metro / BPM / Speed) — sits in the middle of the toolbar */
     .transport-group {
       display: flex; align-items: center; gap: 12px; flex-wrap: wrap;
-      border: 1px solid var(--fret-line); border-radius: 10px; padding: 8px 14px;
-      margin: 0 auto 16px; max-width: var(--board-w, 100%); width: fit-content;
+      border: 1px solid var(--fret-line); border-radius: 10px; padding: 7px 14px;
+      flex: 0 1 auto;
     }
+
+    /* Merged transpose control (♭ / ♯) to the right of the Key selector */
+    .transpose-control { display: inline-flex; }
+    .transpose-control .xpose-btn { border-radius: 0; }
+    .transpose-control .xpose-btn:first-child { border-radius: 8px 0 0 8px; }
+    .transpose-control .xpose-btn:last-child  { border-radius: 0 8px 8px 0; border-left: none; }
 
     /* Add-section affordances */
     .add-section-row { text-align: center; margin: 10px auto 4px; max-width: var(--board-w, 100%); }

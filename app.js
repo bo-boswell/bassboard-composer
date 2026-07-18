@@ -1026,6 +1026,14 @@
       addBtn.addEventListener('click', e => { e.stopPropagation(); addSectionAfter(secIdx); });
       ctrls.appendChild(addBtn);
 
+      const delBtn = document.createElement('button');
+      delBtn.className = 'sec-btn sec-del';
+      delBtn.textContent = '✕';
+      delBtn.title = 'Delete this section';
+      delBtn.setAttribute('aria-label', 'Delete this section');
+      delBtn.addEventListener('click', e => { e.stopPropagation(); deleteSection(secIdx); });
+      ctrls.appendChild(delBtn);
+
       hdr.appendChild(ctrls);
       block.appendChild(hdr);
 
@@ -1230,6 +1238,22 @@
     chart.currentSec = chart.sections.length - 1;
     renderChart();
     focusSectionName(chart.currentSec);
+  }
+
+  function deleteSection(idx) {
+    const sec = chart.sections[idx];
+    if (!sec) return;
+    const label = sec.name ? `"${sec.name}"` : 'this section';
+    if (!confirm(`Delete ${label} and its chords? You can undo this.`)) return;
+    if (chart.loopSection === idx) chart.loopSection = null;
+    else if (chart.loopSection !== null && chart.loopSection > idx) chart.loopSection--;
+    chart.sections.splice(idx, 1);
+    if (!chart.sections.length) chart.sections = [newSection()];
+    if (chart.currentSec > idx) chart.currentSec--;
+    chart.currentSec = Math.max(0, Math.min(chart.currentSec, chart.sections.length - 1));
+    chart.selectedId = null;
+    chart.lastAddedId = null;
+    renderChart();
   }
 
   /* ── Panel button handlers ───────────────────────── */

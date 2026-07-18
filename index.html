@@ -13,33 +13,24 @@
   <div class="header-controls">
     <div class="ctrl-group">
       <label class="ctrl-label" for="key-select">Key</label>
-      <div class="key-transpose">
+      <select class="ctrl-select" id="key-select">
+        <option value="0">C</option>
+        <option value="1">C# / D♭</option>
+        <option value="2">D</option>
+        <option value="3">E♭</option>
+        <option value="4">E</option>
+        <option value="5">F</option>
+        <option value="6">F# / G♭</option>
+        <option value="7">G</option>
+        <option value="8">A♭</option>
+        <option value="9" selected>A</option>
+        <option value="10">B♭</option>
+        <option value="11">B</option>
+      </select>
+      <div class="transpose-control" role="group" aria-label="Transpose key">
         <button class="btn xpose-btn" id="key-down-btn" title="Transpose down a half step" aria-label="Transpose down a half step">♭</button>
-        <select class="ctrl-select" id="key-select">
-          <option value="0">C</option>
-          <option value="1">C# / D♭</option>
-          <option value="2">D</option>
-          <option value="3">E♭</option>
-          <option value="4">E</option>
-          <option value="5">F</option>
-          <option value="6">F# / G♭</option>
-          <option value="7">G</option>
-          <option value="8">A♭</option>
-          <option value="9" selected>A</option>
-          <option value="10">B♭</option>
-          <option value="11">B</option>
-        </select>
         <button class="btn xpose-btn" id="key-up-btn" title="Transpose up a half step" aria-label="Transpose up a half step">♯</button>
       </div>
-    </div>
-    <div class="ctrl-group">
-      <label class="ctrl-label" for="time-select">Time</label>
-      <select class="ctrl-select" id="time-select">
-        <option value="44">4/4</option>
-        <option value="34">3/4</option>
-        <option value="24">2/4</option>
-        <option value="68">6/8</option>
-      </select>
     </div>
     <div class="ctrl-group">
       <label class="ctrl-label" for="tuning-select">Tuning</label>
@@ -47,8 +38,6 @@
         <option value="standard">Standard — E A D G</option>
         <option value="dropD">Drop D — D A D G</option>
         <option value="halfDown">½ Step Down — E♭ A♭ D♭ G♭</option>
-        <option value="fullDown">Full Step Down — D G C F</option>
-        <option value="dropC">Drop C — C G C F</option>
       </select>
     </div>
     <button class="btn" id="transcribe-btn">Start a Chart</button>
@@ -90,10 +79,6 @@
 <section class="transcribe-panel hidden" id="transcribe-panel">
   <div class="panel-toolbar">
     <div class="toolbar-left">
-      <input class="meta-input meta-narrow" id="song-title" type="text" placeholder="Song title…">
-      <input class="meta-input meta-narrow" id="song-writer" type="text" placeholder="Writer (optional)">
-    </div>
-    <div class="toolbar-right">
       <div class="menu" id="file-menu">
         <button class="btn menu-btn" id="file-menu-btn" aria-haspopup="true" aria-expanded="false">File ▾</button>
         <div class="menu-list" id="file-menu-list" hidden role="menu">
@@ -110,19 +95,33 @@
       <button class="btn icon-btn" id="repeat-bar-btn" title="Insert a repeat-measure symbol (%) — repeats the previous bar" aria-label="Insert repeat-measure symbol">%</button>
       <input type="file" id="load-input" accept=".json" style="display:none">
     </div>
-  </div>
 
-  <div class="transport-group">
-    <button class="btn" id="play-btn">&#9654; Play</button>
-    <button class="btn" id="metro-btn" title="Click metronome during playback">&#9834; Metro</button>
-    <div class="ctrl-group">
-      <label class="ctrl-label" for="bpm-input">BPM</label>
-      <input class="bpm-input" id="bpm-input" type="number" min="40" max="300" value="120">
+    <div class="transport-group">
+      <button class="btn" id="play-btn">&#9654; Play</button>
+      <button class="btn" id="metro-btn" title="Click metronome during playback">&#9834; Metro</button>
+      <div class="ctrl-group">
+        <label class="ctrl-label" for="time-select">Time</label>
+        <select class="ctrl-select" id="time-select">
+          <option value="44">4/4</option>
+          <option value="34">3/4</option>
+          <option value="24">2/4</option>
+          <option value="68">6/8</option>
+        </select>
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label" for="bpm-input">BPM</label>
+        <input class="bpm-input" id="bpm-input" type="number" min="40" max="300" value="120">
+      </div>
+      <div class="ctrl-group">
+        <label class="ctrl-label" for="speed-range">Speed</label>
+        <input type="range" id="speed-range" min="25" max="150" value="100" step="5" class="speed-range">
+        <span id="speed-label" class="speed-label">100%</span>
+      </div>
     </div>
-    <div class="ctrl-group">
-      <label class="ctrl-label" for="speed-range">Speed</label>
-      <input type="range" id="speed-range" min="25" max="150" value="100" step="5" class="speed-range">
-      <span id="speed-label" class="speed-label">100%</span>
+
+    <div class="toolbar-right">
+      <input class="meta-input meta-narrow" id="song-title" type="text" placeholder="Song title…">
+      <input class="meta-input meta-narrow" id="song-writer" type="text" placeholder="Writer (optional)">
     </div>
   </div>
 
