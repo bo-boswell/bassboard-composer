@@ -14,7 +14,7 @@
     <div class="ctrl-group">
       <label class="ctrl-label" for="key-select">Key</label>
       <div class="key-transpose">
-        <button class="btn xpose-btn" id="key-down-btn" title="Transpose ♭">♭</button>
+        <button class="btn xpose-btn" id="key-down-btn" title="Transpose down a half step" aria-label="Transpose down a half step">♭</button>
         <select class="ctrl-select" id="key-select">
           <option value="0">C</option>
           <option value="1">C# / D♭</option>
@@ -29,7 +29,7 @@
           <option value="10">B♭</option>
           <option value="11">B</option>
         </select>
-        <button class="btn xpose-btn" id="key-up-btn" title="Transpose ♯">♯</button>
+        <button class="btn xpose-btn" id="key-up-btn" title="Transpose up a half step" aria-label="Transpose up a half step">♯</button>
       </div>
     </div>
     <div class="ctrl-group">
@@ -51,7 +51,7 @@
         <option value="dropC">Drop C — C G C F</option>
       </select>
     </div>
-    <button class="btn" id="transcribe-btn">Transcribe</button>
+    <button class="btn" id="transcribe-btn">Start a Chart</button>
     <button class="btn active" id="label-btn">Labels: Notes</button>
   </div>
 </header>
@@ -59,6 +59,29 @@
 <main>
   <div class="fretboard" id="fretboard" role="group" aria-label="Bass guitar fretboard"></div>
 </main>
+
+<section class="intro-panel" id="intro-panel">
+  <h2 class="intro-title">Turn the notes you play into a Nashville Number chart</h2>
+  <p class="intro-sub">
+    Click the notes on the fretboard and Bassboard Composer turns them into a printable
+    number chart. Right now, clicking a string just plays the note — start a chart to turn
+    your clicks into chord numbers.
+  </p>
+  <div class="intro-actions">
+    <button class="btn intro-primary" id="intro-start-btn">Start a Chart</button>
+    <button class="btn" id="intro-sample-btn">Load a Sample Chart</button>
+  </div>
+  <details class="intro-how">
+    <summary>How it works</summary>
+    <ol>
+      <li>Set your <strong>key</strong>, <strong>meter</strong>, and <strong>tuning</strong> at the top.</li>
+      <li>Click <strong>Start a Chart</strong>, then click fretboard notes — each one becomes a number.</li>
+      <li>Drag on the beat grid to set how long a chord lasts; add quality (minor, 7th…), a slash note, or a measure note.</li>
+      <li>Group your chart into <strong>+ Section</strong>s (Intro, Verse, Chorus…).</li>
+      <li><strong>Save</strong> downloads a backup file; <strong>View Chart</strong> opens a printable page.</li>
+    </ol>
+  </details>
+</section>
 
 <section class="transcribe-panel hidden" id="transcribe-panel">
   <div class="panel-toolbar">
@@ -167,6 +190,8 @@
     <button class="btn save-changes" id="save-changes-btn" style="display:none">Save Changes</button>
   </div>
 </section>
+
+<div class="status-toast" id="status-toast" role="status" aria-live="polite"></div>
 
 <footer class="app-footer">
   Your chart is kept only in this browser. Use <strong>Save</strong> to download a backup file you can reopen later or move to another device.

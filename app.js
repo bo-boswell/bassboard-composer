@@ -522,8 +522,9 @@
     const btn   = document.getElementById('transcribe-btn');
     panel.classList.toggle('hidden', !transcribeMode);
     btn.classList.toggle('active', transcribeMode);
-    btn.textContent = transcribeMode ? 'Transcribing…' : 'Transcribe';
+    btn.textContent = transcribeMode ? 'Charting…' : 'Start a Chart';
     document.body.classList.toggle('transcribe-active', transcribeMode);
+    document.getElementById('intro-panel').classList.toggle('hidden', transcribeMode);
 
     if (transcribeMode && labelIndex === 0) {
       labelIndex = LABEL_MODES.indexOf('nns');
@@ -537,6 +538,48 @@
   document.getElementById('transcribe-btn').addEventListener('click', () => {
     setTranscribeMode(!transcribeMode);
   });
+
+  /* ── First-run intro + sample chart ──────────────── */
+
+  // A recognizable, public-domain hymn so newcomers see a finished chart.
+  // Amazing Grace, 3/4, in the key of G. Simple whole-bar I/IV/V voicing.
+  const SAMPLE_CHART = {
+    version: 1,
+    title:  'Amazing Grace (sample)',
+    writer: 'John Newton · Traditional (public domain)',
+    tempo:  '', keyMidi: 7, timeSig: '3/4', tuning: 'standard', bpm: 90,
+    cellsPerBar: 3, cellsPerComp: 1, currentSec: 0, nextId: 16,
+    sections: [{
+      name: 'Verse', breaks: [4, 8, 12], barNotes: {},
+      entries: [1,1,4,1, 1,5,5,5, 1,1,4,1, 1,5,1,1].map((deg, i) =>
+        ({ id: i, degree: String(deg), quality: '', slash: '', duration: 3 })),
+    }],
+  };
+
+  function loadSample() {
+    if (chartHasContent() &&
+        !confirm('Load the sample chart? It will replace what you have open now.')) return;
+    if (isPlaying) stopPlayback();
+    restoreSnapshot(JSON.parse(JSON.stringify(SAMPLE_CHART)));
+    setTranscribeMode(true);
+    updateNNSLabels();
+    renderChart();
+    resetHistory();
+    showToast('Sample chart loaded');
+  }
+
+  document.getElementById('intro-start-btn').addEventListener('click', () => setTranscribeMode(true));
+  document.getElementById('intro-sample-btn').addEventListener('click', loadSample);
+
+  let toastTimer = null;
+  function showToast(msg) {
+    const t = document.getElementById('status-toast');
+    if (!t) return;
+    t.textContent = msg;
+    t.classList.add('show');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => t.classList.remove('show'), 1800);
+  }
 
   /* ── Chart entry management ──────────────────────── */
 
@@ -886,15 +929,15 @@
       const block = document.createElement('div');
       block.className = 'section-block';
 
-      const h = document.createElement('div');
-      h.className = 'section-name-label';
-      h.contentEditable = 'true';
-      h.dataset.placeholder = 'Section name…';
-      h.textContent = sec.name;
-      h.addEventListener('blur', () => {
-        sec.name = h.textContent.trim();
-        autosave();
-      });
+      const h = document.createElement('input');
+      h.type = 'text';
+      h.className = 'section-name-input';
+      h.placeholder = 'Section name…';
+      h.value = sec.name;
+      h.setAttribute('aria-label', 'Section name');
+      const commitName = () => { sec.name = h.value.trim(); autosave(); };
+      h.addEventListener('change', commitName);
+      h.addEventListener('blur', commitName);
       h.addEventListener('keydown', e => {
         if (e.key === 'Enter') { e.preventDefault(); h.blur(); }
       });
@@ -904,6 +947,8 @@
       const secIdx  = chart.sections.indexOf(sec);
       loopBtn.className = 'btn loop-btn' + (chart.loopSection === secIdx ? ' active' : '');
       loopBtn.title = 'Loop this section during playback';
+      loopBtn.setAttribute('aria-label', 'Loop this section during playback');
+      loopBtn.setAttribute('aria-pressed', chart.loopSection === secIdx ? 'true' : 'false');
       loopBtn.textContent = '⟳';
       loopBtn.addEventListener('click', e => {
         e.stopPropagation();
@@ -918,6 +963,7 @@
       upBtn.className = 'btn sec-move-btn';
       upBtn.textContent = '▲';
       upBtn.title = 'Move section up';
+      upBtn.setAttribute('aria-label', 'Move section up');
       upBtn.disabled = secIdx === 0;
       upBtn.addEventListener('click', e => { e.stopPropagation(); moveSection(secIdx, -1); });
       block.appendChild(upBtn);
@@ -926,6 +972,7 @@
       downBtn.className = 'btn sec-move-btn';
       downBtn.textContent = '▼';
       downBtn.title = 'Move section down';
+      downBtn.setAttribute('aria-label', 'Move section down');
       downBtn.disabled = secIdx === chart.sections.length - 1;
       downBtn.addEventListener('click', e => { e.stopPropagation(); moveSection(secIdx, +1); });
       block.appendChild(downBtn);
@@ -1149,6 +1196,7 @@
     chart.sections = [{ name:'', entries:[], breaks:[], barNotes:{} }];
     chart.currentSec = 0; chart.selectedId = null; chart.lastAddedId = null; chart.nextId = 0; chart.loopSection = null;
     renderChart();
+    showToast('Chart cleared');
   });
 
   document.getElementById('copy-btn').addEventListener('click', copyChart);
@@ -1641,6 +1689,7 @@
       { href: URL.createObjectURL(blob), download: `${title}.json` });
     a.click();
     URL.revokeObjectURL(a.href);
+    showToast('Chart saved to your downloads');
   }
 
   function loadChart(file) {
@@ -1667,6 +1716,7 @@
       updateNNSLabels();
       renderChart();
       resetHistory();  // a loaded file starts a fresh history
+      showToast('Chart loaded');
     };
     reader.readAsText(file);
   }

@@ -29,6 +29,78 @@
     }
     .app-footer strong { color: var(--text); font-weight: 600; }
 
+    /* ── First-run intro ──────────────────────────────── */
+    .intro-panel {
+      max-width: 640px;
+      margin: 8px auto 28px;
+      padding: 22px 26px 26px;
+      background: var(--surface);
+      border: 1px solid var(--fret-line);
+      border-radius: 12px;
+      text-align: center;
+    }
+    .intro-panel.hidden { display: none; }
+    .intro-title { font-size: 1.15rem; color: var(--accent); margin-bottom: 8px; }
+    .intro-sub { font-size: 0.9rem; color: var(--text); line-height: 1.55; margin-bottom: 16px; }
+    .intro-actions { display: flex; gap: 10px; justify-content: center; flex-wrap: wrap; margin-bottom: 6px; }
+    .intro-primary {
+      background: #1b3a3e; border-color: var(--accent); color: var(--accent); font-weight: 600;
+    }
+    .intro-primary:hover { background: #22484d; }
+    .intro-how { margin-top: 14px; text-align: left; }
+    .intro-how summary {
+      font-size: 0.8rem; color: var(--text-dim); cursor: pointer; text-align: center;
+      list-style: none; text-transform: uppercase; letter-spacing: 0.05em;
+    }
+    .intro-how summary:hover { color: var(--text); }
+    .intro-how ol { margin: 12px 0 0; padding-left: 22px; }
+    .intro-how li { font-size: 0.85rem; color: var(--text); line-height: 1.5; margin-bottom: 7px; }
+    .intro-how strong { color: var(--accent); font-weight: 600; }
+
+    /* ── Status toast ─────────────────────────────────── */
+    .status-toast {
+      position: fixed;
+      bottom: 20px; left: 50%; transform: translateX(-50%) translateY(12px);
+      background: var(--surface2); color: var(--text);
+      border: 1px solid var(--accent);
+      padding: 9px 18px; border-radius: 22px; font-size: 0.85rem;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.4);
+      opacity: 0; pointer-events: none;
+      transition: opacity 0.2s, transform 0.2s;
+      z-index: 50;
+    }
+    .status-toast.show { opacity: 1; transform: translateX(-50%) translateY(0); }
+
+    /* ── Section name (touch-reliable input, replaces contentEditable) ── */
+    .section-name-input {
+      background: transparent;
+      border: none;
+      border-bottom: 1px solid transparent;
+      color: var(--text-dim);
+      font-size: 0.72rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.1em;
+      padding: 2px 2px 3px;
+      outline: none;
+      min-width: 90px;
+      max-width: 240px;
+    }
+    .section-name-input::placeholder { color: #555; }
+    .section-name-input:hover { border-bottom-color: var(--fret-line); }
+    .section-name-input:focus { border-bottom-color: var(--accent); color: var(--text); }
+
+    /* ── Keyboard focus visibility ────────────────────── */
+    .btn:focus-visible,
+    .ctrl-select:focus-visible,
+    .entry-token:focus-visible,
+    .micro-btn:focus-visible,
+    input:focus-visible,
+    summary:focus-visible {
+      outline: 2px solid var(--accent);
+      outline-offset: 2px;
+    }
+
     :root {
       --bg:        #0f1117;
       --surface:   #1a1d27;
@@ -691,4 +763,17 @@
       :root { --fw: 28px; --fh: 40px; --dot: 22px; }
       .note-dot { font-size: 0.55rem; }
     }
-  
+
+    /* Touch devices: comfortable tap targets (Apple 44px guideline).
+       Placed after the width queries above so it wins on touch screens. */
+    @media (pointer: coarse) {
+      :root { --fw: 54px; --fh: 54px; --dot: 44px; }
+      .note-dot { font-size: 0.72rem; }
+      .btn, .ctrl-select, .micro-btn, .sec-move-btn, .loop-btn, .xpose-btn {
+        min-height: 42px;
+        padding-top: 8px; padding-bottom: 8px;
+      }
+      .entry-token { min-height: 40px; padding: 8px 11px; }
+      .beat-cell { height: 42px; }
+      .section-name-input { font-size: 0.82rem; min-height: 36px; }
+    }

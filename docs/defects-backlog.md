@@ -20,8 +20,13 @@ old and new files remain mutually loadable.
 Cmd-Shift-Z), D15 (mid-chart insert — "+ After" duplicates the selected chord), D16 (meter
 change warns before regrouping bars). Also added (features Bo requested, not defects): section
 reordering (▲▼). Verified by `verify-m4.mjs` (20 checks; fixtures still byte-identical to M1
-baseline). **Still open:** D8, D10, D11, D12, D13 → M6; D17, D18 → M5; D19–D21 → M8
-(D21 partly addressed by the in-app storage note).
+baseline). **Fixed in M5 (2026-07-17):** D17 (section rename now a touch-reliable input; 44px tap
+targets for touch devices via `pointer:coarse`), D18 (first-run intro panel + sample chart +
+relabeled entry button + "how it works"). Added: status toasts, aria-labels on icon buttons,
+:focus-visible outlines. iPad touch sizing still needs a real-device pass (M6/pilot).
+
+**Still open:** D8, D10, D11, D12, D13 → M6 (Bo's flagged priority = print/PDF layout);
+D19, D20 → M8 (D21 addressed by the in-app storage note).
 
 ---
 
