@@ -109,11 +109,15 @@
     .transport-seg {
       display: inline-flex; align-items: center; justify-content: center; gap: 3px;
       min-width: 46px; height: 34px; padding: 4px 10px; font-size: 1rem; line-height: 1;
-      border-radius: 0;
+      border-radius: 0; position: relative; margin-left: -1px;   /* overlap shared borders by 1px */
     }
-    .transport-seg:first-child { border-radius: 8px 0 0 8px; }
-    .transport-seg:last-child  { border-radius: 0 8px 8px 0; border-left: none; }
-    .transport-seg:not(:first-child):not(:last-child) { border-left: none; border-radius: 0; }
+    .transport-seg:first-child { border-radius: 8px 0 0 8px; margin-left: 0; }
+    .transport-seg:last-child  { border-radius: 0 8px 8px 0; }
+    .transport-seg:not(:first-child):not(:last-child) { border-radius: 0; }
+    /* Raise the hovered/active/focused segment so all four of its borders show */
+    .transport-seg:hover,
+    .transport-seg:focus-visible,
+    .transport-seg.active { z-index: 1; }
     .transport-seg.active { background: #1b3a3e; border-color: var(--accent); color: var(--accent); }
     .transport-seg svg { display: block; }
     .tp-play-glyph { font-size: 0.82rem; }
