@@ -113,7 +113,7 @@
     }
     .transport-seg:first-child { border-radius: 8px 0 0 8px; }
     .transport-seg:last-child  { border-radius: 0 8px 8px 0; border-left: none; }
-    .transport-seg:not(:first-child):not(:last-child) { border-left: none; }
+    .transport-seg:not(:first-child):not(:last-child) { border-left: none; border-radius: 0; }
     .transport-seg.active { background: #1b3a3e; border-color: var(--accent); color: var(--accent); }
     .transport-seg svg { display: block; }
     .tp-play-glyph { font-size: 0.82rem; }
