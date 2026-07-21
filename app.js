@@ -7,6 +7,12 @@
   const CHROM_DEG    = {1:'b2', 3:'b3', 6:'b5', 8:'b6', 10:'b7'};
   const KEY_NAMES    = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
 
+  // Letter-name spelling for the "show chords as letters" view
+  const SHARP_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
+  const FLAT_NAMES  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
+  const FLAT_KEYS   = new Set([1, 3, 5, 8, 10]);   // Db, Eb, F, Ab, Bb — spell with flats
+  let chartLetters  = false;                        // false = Nashville numbers, true = letter chords
+
   /*
    * A "cell" is a SIXTEENTH note (finest grid resolution).
    * cellsPerBar  = sixteenth-note slots the beat grid shows for the meter
@@ -563,6 +569,19 @@
     btn.classList.toggle('active', mode !== 'none');
   });
 
+  // Toggle the chart between Nashville numbers and chord letters (display only;
+  // the underlying data stays as scale degrees, so it re-spells when you transpose).
+  function updateChartModeBtn() {
+    const btn = document.getElementById('chart-mode-btn');
+    btn.textContent = chartLetters ? 'Chart: Letters' : 'Chart: Numbers';
+    btn.classList.toggle('active', chartLetters);
+  }
+  document.getElementById('chart-mode-btn').addEventListener('click', () => {
+    chartLetters = !chartLetters;
+    updateChartModeBtn();
+    renderChart();
+  });
+
   /* ── Key / time sig / tuning controls ───────────── */
 
   document.getElementById('tuning-select').addEventListener('change', e => {
@@ -750,9 +769,30 @@
     renderChart();
   }
 
+  // Spell a scale degree as a letter in the current key. Flat degrees (b3, b7…)
+  // and flat keys spell with flats; otherwise sharps.
+  function degreeToLetter(degToken) {
+    const semi = DEGREE_TO_SEMI[degToken];
+    if (semi === undefined) return null;
+    const pc = (chart.keyMidi + semi) % 12;
+    const useFlat = degToken.includes('b') || FLAT_KEYS.has(chart.keyMidi);
+    return (useFlat ? FLAT_NAMES : SHARP_NAMES)[pc];
+  }
+
+  function letterSymbol(e) {
+    const root = degreeToLetter(e.degree);
+    if (root === null) return e.degree + e.quality + (e.slash ? '/' + e.slash : '');
+    const qual  = e.quality === '-' ? 'm' : e.quality;   // minor reads as "m" with letters
+    let   slash = e.slash;
+    if (slash) { const sl = degreeToLetter(slash); if (sl) slash = sl; }
+    return root + qual + (slash ? '/' + slash : '');
+  }
+
   function getEntrySymbol(e) {
     if (e.degree === 'R') return 'R';          // rest (silent)
     if (e.degree === 'X') return 'X';          // muted / dead note (percussive)
+    if (e.degree === '%') return '%';          // repeat bar
+    if (chartLetters) return letterSymbol(e);
     return e.degree + e.quality + (e.slash ? '/' + e.slash : '');
   }
 
@@ -1735,6 +1775,7 @@ ${bodyHtml}
       bpm:        currentBpm(),
       cellsPerBar:  chart.cellsPerBar,
       cellsPerComp: chart.cellsPerComp,
+      chartLetters: chartLetters,
       sections:   chart.sections,
       currentSec: chart.currentSec,
       nextId:     chart.nextId,
@@ -1822,6 +1863,9 @@ ${bodyHtml}
       bpm = (t >= 40 && t <= 300) ? t : 120;
     }
     document.getElementById('bpm-input').value = bpm;
+
+    chartLetters = !!data.chartLetters;
+    updateChartModeBtn();
 
     // Rebuild the fretboard for the restored tuning
     STRINGS = TUNINGS[chart.tuning];
