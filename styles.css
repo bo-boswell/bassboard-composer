@@ -28,6 +28,8 @@
       padding: 14px 20px 24px;
     }
     .app-footer strong { color: var(--text); font-weight: 600; }
+    .saved-status { margin-top: 4px; font-size: 0.68rem; color: var(--text-dim); }
+    .saved-status.warn { color: #ffb74d; }
 
     /* ── Section header: name left, equal-size controls right, bordered ── */
     .section-header {

@@ -69,10 +69,11 @@
     <summary>How it works</summary>
     <ol>
       <li>Set your <strong>key</strong>, <strong>meter</strong>, and <strong>tuning</strong> at the top.</li>
-      <li>Click <strong>Start a Chart</strong>, then click fretboard notes — each one becomes a number.</li>
-      <li>Drag on the beat grid to set how long a chord lasts; add quality (minor, 7th…), a slash note, or a measure note.</li>
+      <li>Click <strong>Start a Chart</strong>, then click fretboard notes — each one becomes a number. A note fills the rest of its bar; <strong>shift-click</strong> adds just one beat.</li>
+      <li>Fine-tune length by dragging on the beat grid; add quality (minor, 7th…), a slash note, or a measure note.</li>
       <li>Use the <strong>＋</strong> on a section (or <strong>＋ Add section</strong> at the bottom) to add sections like Verse and Chorus; click a section name to rename it.</li>
       <li>The <strong>File</strong> menu holds Save, Load, Copy, View Chart, and Clear. <strong>Save</strong> downloads a backup file; <strong>View Chart</strong> opens a printable page.</li>
+      <li><strong>Chart: Letters</strong> shows chord names instead of numbers. Spellings are kept simple (e.g. a flat 7 reads as B in D♭, not C♭ — no double-sharps or -flats).</li>
     </ol>
   </details>
 </section>
@@ -181,7 +182,8 @@
 <div class="status-toast" id="status-toast" role="status" aria-live="polite"></div>
 
 <footer class="app-footer">
-  Your chart is kept only in this browser. Use <strong>Save</strong> to download a backup file you can reopen later or move to another device.
+  <div>Your chart is kept only in this browser. Use <strong>Save</strong> to download a backup file you can reopen later or move to another device.</div>
+  <div class="saved-status" id="saved-status"></div>
 </footer>
 
 <script src="app.js"></script>

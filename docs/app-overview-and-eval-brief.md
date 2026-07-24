@@ -95,30 +95,59 @@ ChordPro / MusicXML import-export; shareable links; lyrics; offline/PWA install.
 
 *Paste the section below (plus this whole document as context) into another AI system.*
 
-> You are an expert product and UX reviewer with a background in music software and Nashville Number
-> System charting. Above is an overview of **Bassboard Composer**, a source-available, single-file
-> web app. The live beta is at https://bo-boswell.github.io/bassboard-composer/ and the code is
-> public (HTML/CSS/JS, readable in one repo) — inspect both if you can.
+**Before sending, attach:** (1) this document, (2) `app.js`, (3) a real saved chart JSON
+(e.g., `your-song.json`), (4) the printed-chart output for that same song
+(print HTML or PDF). The prompt is built around these artifacts — don't skip them.
+
+**Adjust for the target:** if the AI can actually browse and operate the live app
+(e.g., an agentic system with browser access), delete the "you probably cannot interact"
+paragraph and instead require it to exercise the live app before writing anything.
+
+> You are reviewing **Bassboard Composer** to help me decide what to build, fix, or cut
+> before opening the beta beyond a handful of users. The full overview doc is above.
+> Attached: (1) a real saved chart JSON, (2) the printed-chart output for that same
+> song, (3) `app.js`. Live app: https://bo-boswell.github.io/bassboard-composer/ — repo:
+> https://github.com/bo-boswell/bassboard-composer (single index.html + app.js +
+> styles.css, vanilla JS, no libraries).
 >
-> Please produce an evaluation with these parts:
+> Hard constraints, non-negotiable: single static file set, no backend, no accounts,
+> no paid services, browser-only, desktop + iPad-landscape. The "Deliberately
+> deferred" list in the doc is known — raise those items only to argue a
+> reprioritization. Do not re-list existing features. Known bugs are already
+> tracked separately; focus on design and gaps, not bug-hunting.
 >
-> 1. **Heuristic UX review** — walk the core workflow (set key/meter/tuning → chart notes → set
->    durations → sections → playback → print/save). Identify friction, confusing moments, and
->    anything that violates least-surprise, grouped by severity.
-> 2. **Feature ideas I might be missing** — this is the priority. Suggest capabilities that would
->    make the tool meaningfully more useful for bass players, worship/session musicians, and
->    songwriters. Favor ideas that fit the constraints (single static file, no backend/accounts,
->    self-contained, browser-only). For each idea give: the user need, a one-line description, rough
->    effort (S/M/L), and why it matters. Include at least a few **non-obvious / lateral** ideas.
-> 3. **Prioritization** — rank your feature ideas into "before public launch," "fast follow," and
->    "someday," and say what you'd cut to keep the beta small and dependable.
-> 4. **Musical-correctness check** — flag anywhere the app's notation or music behavior looks wrong
->    or oversimplified (e.g. how it handles minor keys, accidentals/spelling, 6/8, tick marks,
->    rests). Ask questions rather than assuming NNS rules.
-> 5. **Risks & failure modes** — where might a real musician lose work, get a wrong-sounding chart,
->    or give up? What's fragile about a browser-storage, no-account model?
+> Epistemics rule: you probably cannot interact with the running app. Tag every
+> finding **[Observed]** (seen in code or the attached artifacts), **[Inferred]** (from
+> the doc), or **[Assumed]**. Never describe UI behavior as if you experienced it.
+> No praise or preamble — findings only.
 >
-> Constraints to respect: keep suggestions compatible with a self-contained static web app (no
-> server, accounts, or paid services required to run it). The items in "Deliberately deferred" are
-> known — only raise them if you have a strong reason to reprioritize. Don't re-list features that
-> already exist. Be specific and opinionated; a clear recommendation beats a list of options.
+> Produce, in this order and weighting:
+>
+> 1. **FEATURE GAPS** (the priority — spend half your effort here). 12–15 ideas that
+>    make this meaningfully better for bass players, worship/session musicians,
+>    and songwriters, at least 4 non-obvious or lateral. Ground them in how
+>    working musicians actually handle charts today (including what tools like
+>    OnSong or 1Chart solve that this doesn't). For each: user need, one-line
+>    description, why it matters, effort S/M/L — where effort assumes an
+>    AI-assisted non-professional developer in a ~2,100-line vanilla JS codebase.
+>
+> 2. **LAUNCH CALL.** Sort your ideas into before-launch / fast-follow / someday,
+>    plus anything currently in the app you'd cut to keep the beta small. Tie
+>    each before-launch item to the decision: what goes wrong at launch without it?
+>
+> 3. **MUSICAL-CORRECTNESS AUDIT** of the attached JSON and printed chart. Check
+>    accidental spelling, minor-key handling, 6/8 notation, tick marks, rests,
+>    split bars. State which NNS convention you're assuming; where conventions
+>    differ across scenes (Nashville session vs. worship), say so rather than
+>    declaring one wrong.
+>
+> 4. **UX REVIEW**, capped at your top 8 findings, ordered by severity, on the core
+>    workflow (key/meter/tuning → chart → durations → sections → playback →
+>    print). Only findings supportable from the code, doc, or artifacts — tag each.
+>
+> 5. **TOP 5 RISKS** of the browser-storage, no-account model, each with the cheapest
+>    mitigation that fits the constraints.
+>
+> Close with: your three highest-conviction recommendations overall, and the one
+> thing most likely to make a working session bassist abandon the tool in the
+> first ten minutes.

@@ -5,13 +5,28 @@
   const MAJOR_SCALE  = [0, 2, 4, 5, 7, 9, 11];
   const DEGREE_NAMES = ['1','2','3','4','5','6','7'];
   const CHROM_DEG    = {1:'b2', 3:'b3', 6:'b5', 8:'b6', 10:'b7'};
-  const KEY_NAMES    = ['C','C#','D','Eb','E','F','F#','G','Ab','A','Bb','B'];
-
   // Letter-name spelling for the "show chords as letters" view
   const SHARP_NAMES = ['C','C#','D','D#','E','F','F#','G','G#','A','A#','B'];
   const FLAT_NAMES  = ['C','Db','D','Eb','E','F','Gb','G','Ab','A','Bb','B'];
   const FLAT_KEYS   = new Set([1, 3, 5, 8, 10]);   // Db, Eb, F, Ab, Bb — spell with flats
   let chartLetters  = false;                        // false = Nashville numbers, true = letter chords
+
+  const STORAGE_KEY = 'nns-chart';                  // browser autosave slot (namespaced in M8)
+  let bpmTouched    = false;                        // has the user set a tempo? (else omit from print)
+
+  // Printed/displayed key name agrees with the letters-mode spelling (flat keys → flats)
+  const KEY_NAMES = Array.from({ length: 12 }, (_, i) => (FLAT_KEYS.has(i) ? FLAT_NAMES : SHARP_NAMES)[i]);
+
+  // Parse a typed note letter (e.g. "Bb", "F#", "A") to a pitch class 0–11, or null
+  const PC_BY_LETTER = { C:0, D:2, E:4, F:5, G:7, A:9, B:11 };
+  function letterToPc(str) {
+    const m = String(str).trim().match(/^([A-Ga-g])\s*([#♯b♭]?)$/);
+    if (!m) return null;
+    let pc = PC_BY_LETTER[m[1].toUpperCase()];
+    if (m[2] === '#' || m[2] === '♯') pc = (pc + 1) % 12;
+    else if (m[2] === 'b' || m[2] === '♭') pc = (pc + 11) % 12;
+    return pc;
+  }
 
   /*
    * A "cell" is a SIXTEENTH note (finest grid resolution).
@@ -196,10 +211,25 @@
   const DEGREE_TO_SEMI = {
     '1':0,'b2':1,'2':2,'b3':3,'3':4,'4':5,'b5':6,'5':7,'b6':8,'6':9,'b7':10,'7':11
   };
+  const SEMI_TO_DEGREE = ['1','b2','2','b3','3','4','b5','5','b6','6','b7','7'];
+
+  // Normalize a slash-note entry to a degree token in the current key.
+  // Accepts a degree token as-is, converts a note letter to the matching degree,
+  // and returns null for anything unrecognizable (caller decides what to do).
+  function normalizeSlash(raw) {
+    const s = String(raw || '').trim();
+    if (!s) return '';
+    if (DEGREE_TO_SEMI[s] !== undefined) return s;         // already a degree token
+    const pc = letterToPc(s);
+    if (pc === null) return null;                           // not a letter either → invalid
+    return SEMI_TO_DEGREE[(pc - chart.keyMidi + 12) % 12];  // letter → degree (transposes for free)
+  }
 
   function entryToMidi(entry) {
     if (entry.degree === '%') return (chart.keyMidi % 12) + 36; // root note as fallback
-    const semi = DEGREE_TO_SEMI[entry.degree] ?? 0;
+    // A slash note IS the bass note — voice it instead of the chord root
+    const voice = (entry.slash && DEGREE_TO_SEMI[entry.slash] !== undefined) ? entry.slash : entry.degree;
+    const semi = DEGREE_TO_SEMI[voice] ?? 0;
     let midi = (chart.keyMidi % 12) + 36 + semi; // root anchored at octave 2
     if (midi > 55) midi -= 12;                    // keep within comfortable bass range
     return midi;
@@ -722,13 +752,13 @@
 
   /* ── Chart entry management ──────────────────────── */
 
-  function addEntry(noteMidi, fullMeasure = false) {
+  function addEntry(noteMidi, shiftHeld = false) {
     const sec = chart.sections[chart.currentSec];
     const totalCells  = sec.entries.reduce((s, e) => s + e.duration, 0);
     const usedInBar   = totalCells % chart.cellsPerBar;
     const remaining   = usedInBar === 0 ? chart.cellsPerBar : chart.cellsPerBar - usedInBar;
-    const preferred   = fullMeasure ? chart.cellsPerBar : Math.ceil(chart.cellsPerBar / 2);
-    const dur         = Math.min(preferred, remaining);
+    // Default fills the rest of the current bar; shift-click drops a single beat.
+    const dur         = shiftHeld ? Math.min(chart.cellsPerComp, remaining) : remaining;
     const degree = getNNSDegree(noteMidi, chart.keyMidi);
     const DIATONIC = { '2': '-', '6': '-' };
     const entry = { id: chart.nextId++, degree,
@@ -1359,22 +1389,40 @@
       qualRow.appendChild(b);
     });
 
-    // Slash input
+    // Slash input — shows a degree (or its letter in Letters mode); accepts either on entry
     const slashInput = document.getElementById('slash-input');
-    slashInput.value = entry.slash;
-    slashInput.oninput = () => {
+    const slashDisplay = () =>
+      (chartLetters && DEGREE_TO_SEMI[entry.slash] !== undefined) ? degreeToLetter(entry.slash) : entry.slash;
+    slashInput.value = slashDisplay();
+    slashInput.oninput = () => {           // live: keep raw text so the symbol updates as you type
       entry.slash = slashInput.value.trim();
-      document.getElementById('editor-symbol').textContent = getEntrySymbol(entry);
-      document.querySelectorAll('.entry-token.selected').forEach(t => {
-        t.textContent = getEntrySymbol(entry);
-        t.classList.toggle('subdivision', isSubdivision(entry));
-      });
+      refreshEntryDisplay(entry);
       autosave();
+    };
+    slashInput.onblur = () => {            // commit: convert to a degree token, or reject
+      const norm = normalizeSlash(slashInput.value);
+      if (norm === null) {
+        showToast('Slash note should be a scale degree (3, 5, b7…) or a note letter (G, Bb).');
+        entry.slash = '';
+      } else {
+        entry.slash = norm;                // always stored as a degree so it transposes
+      }
+      slashInput.value = slashDisplay();
+      refreshEntryDisplay(entry);
+      renderChart();
     };
 
     wireMeasureNote(entry);
 
     reserveForEditor();
+  }
+
+  function refreshEntryDisplay(entry) {
+    document.getElementById('editor-symbol').textContent = getEntrySymbol(entry);
+    document.querySelectorAll('.entry-token.selected').forEach(t => {
+      t.textContent = getEntrySymbol(entry);
+      t.classList.toggle('subdivision', isSubdivision(entry));
+    });
   }
 
   function wireMeasureNote(entry) {
@@ -1554,15 +1602,23 @@
     return lines;
   }
 
+  // Header meta: tempo shown only when the user actually set one (else omitted)
+  function chartMetaParts() {
+    const parts = [];
+    if (bpmTouched) parts.push(`Tempo: ${currentBpm()}`);
+    parts.push(`Time: ${chart.timeSig}`);
+    parts.push(`Key: ${KEY_NAMES[chart.keyMidi]}`);
+    return parts;
+  }
+
   function generateOutput() {
     const lines   = [];
     const title   = document.getElementById('song-title').value.trim();
     const writer  = document.getElementById('song-writer').value.trim();
-    const keyName = KEY_NAMES[chart.keyMidi];
 
     if (title)  lines.push(title);
     if (writer) lines.push(writer);
-    lines.push([`Tempo: ${currentBpm()}`, `Time: ${chart.timeSig}`, `Key: ${keyName}`].join(' | '));
+    lines.push(chartMetaParts().join(' | '));
     lines.push('');
 
     chart.sections.forEach(sec => {
@@ -1598,7 +1654,7 @@
 
     if (title)  lines.push(`<b>${escHtml(title)}</b>`);
     if (writer) lines.push(`<i>${escHtml(writer)}</i>`);
-    lines.push(escHtml([`Tempo: ${currentBpm()}`, `Time: ${chart.timeSig}`, `Key: ${keyName}`].join(' | ')));
+    lines.push(escHtml(chartMetaParts().join(' | ')));
     lines.push('');
 
     chart.sections.forEach(sec => {
@@ -1652,8 +1708,7 @@
     let headerHtml = '';
     if (title)  headerHtml += `<h1>${escHtml(title)}</h1>`;
     if (writer) headerHtml += `<p class="writer">${escHtml(writer)}</p>`;
-    const metaParts = [`Tempo: ${currentBpm()}`, `Time: ${chart.timeSig}`, `Key: ${keyName}`];
-    headerHtml += `<p class="chart-meta">${escHtml(metaParts.join('  |  '))}</p>`;
+    headerHtml += `<p class="chart-meta">${escHtml(chartMetaParts().join('  |  '))}</p>`;
 
     // Build each section as a flowing number-chart block: bold name + chord
     // lines. Split bars are underlined; groups of four bars are separated by •.
@@ -1772,7 +1827,7 @@ ${bodyHtml}
       keyMidi:    chart.keyMidi,
       timeSig:    chart.timeSig,
       tuning:     chart.tuning,
-      bpm:        currentBpm(),
+      ...(bpmTouched ? { bpm: currentBpm() } : {}),   // only persist a tempo the user set
       cellsPerBar:  chart.cellsPerBar,
       cellsPerComp: chart.cellsPerComp,
       chartLetters: chartLetters,
@@ -1844,7 +1899,13 @@ ${bodyHtml}
     chart.sections.forEach(s => {
       if (!s.breaks)   s.breaks   = [];
       if (!s.barNotes) s.barNotes = {};
-      s.entries.forEach(e => { if (typeof e.quality !== 'string') e.quality = ''; if (typeof e.slash !== 'string') e.slash = ''; });
+      s.entries.forEach(e => {
+        if (typeof e.quality !== 'string') e.quality = '';
+        if (typeof e.slash !== 'string') e.slash = '';
+        // Normalize any letter slashes from older free-text saves to degree tokens.
+        // Degree tokens are returned unchanged; unrecognizable values are left as-is.
+        if (e.slash) { const n = normalizeSlash(e.slash); if (n !== null) e.slash = n; }
+      });
     });
     // Migrate old en-dash minor marker to hyphen
     chart.sections.forEach(s => s.entries.forEach(e => {
@@ -1855,12 +1916,14 @@ ${bodyHtml}
     chart.sections.forEach(s => s.entries.forEach(e => { if (Number.isInteger(e.id) && e.id > maxId) maxId = e.id; }));
     chart.nextId = Math.max(Number.isInteger(data.nextId) ? data.nextId : 0, maxId + 1);
 
-    // Restore playback BPM: saved value wins; else seed from a numeric tempo; else 120
+    // Restore playback BPM: saved value wins; else seed from a numeric tempo; else 120.
+    // A tempo is "touched" only if the file carried one (saved bpm or a numeric tempo string).
     let bpm = (Number.isInteger(data.bpm) && data.bpm >= 40 && data.bpm <= 300) ? data.bpm : null;
+    bpmTouched = bpm !== null;
     if (bpm === null) {
       const m = String(data.tempo || '').match(/\d{2,3}/);
       const t = m ? parseInt(m[0]) : NaN;
-      bpm = (t >= 40 && t <= 300) ? t : 120;
+      if (t >= 40 && t <= 300) { bpm = t; bpmTouched = true; } else { bpm = 120; }
     }
     document.getElementById('bpm-input').value = bpm;
 
@@ -1880,8 +1943,36 @@ ${bodyHtml}
     return true;
   }
 
+  let autosaveFailed = false;
+  let lastSavedAt = null;
+
+  function pad2(n) { return String(n).padStart(2, '0'); }
+
+  function updateSavedFooter() {
+    const el = document.getElementById('saved-status');
+    if (!el) return;
+    if (autosaveFailed) {
+      el.textContent = '⚠ Not being saved in this browser — use File ▸ Save to download a backup.';
+      el.classList.add('warn');
+    } else if (lastSavedAt) {
+      el.textContent = `Last saved ${pad2(lastSavedAt.getHours())}:${pad2(lastSavedAt.getMinutes())}`;
+      el.classList.remove('warn');
+    } else {
+      el.textContent = '';
+    }
+  }
+
   function autosave() {
-    try { localStorage.setItem('nns-chart', JSON.stringify(chartSnapshot())); } catch {}
+    try {
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(chartSnapshot()));
+      lastSavedAt = new Date();
+    } catch {
+      if (!autosaveFailed) {
+        autosaveFailed = true;
+        showToast("This browser isn't storing your chart (private mode or storage full). Use File ▸ Save to download a backup.");
+      }
+    }
+    updateSavedFooter();
     historyCheckpoint();
   }
 
@@ -2044,6 +2135,8 @@ ${bodyHtml}
   // Autosave typed song details as they change (title/writer/bpm aren't part of chart mutations)
   ['song-title', 'song-writer', 'bpm-input'].forEach(id =>
     document.getElementById(id).addEventListener('input', autosave));
+  // Setting the BPM marks the tempo as intentional so it prints
+  document.getElementById('bpm-input').addEventListener('input', () => { bpmTouched = true; });
 
   // Autosave on any chart mutation
   const _origRenderChart = renderChart;
@@ -2089,7 +2182,7 @@ ${bodyHtml}
 
   // Restore last session from localStorage, and show it immediately if it has content
   try {
-    const saved = localStorage.getItem('nns-chart');
+    const saved = localStorage.getItem(STORAGE_KEY);
     if (saved && restoreSnapshot(JSON.parse(saved)) && chartHasContent()) {
       setTranscribeMode(true);
     }
