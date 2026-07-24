@@ -4,6 +4,12 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Bassboard Composer</title>
+  <meta name="description" content="Build Nashville Number System charts by clicking the notes you play on a bass fretboard. Free, runs in your browser.">
+  <meta property="og:title" content="Bassboard Composer">
+  <meta property="og:description" content="Click the notes you play on a bass fretboard and turn them into a printable Nashville Number System chart.">
+  <meta property="og:type" content="website">
+  <meta property="og:url" content="https://bo-boswell.github.io/bassboard-composer/">
+  <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'%3E%3Crect width='32' height='32' rx='7' fill='%230f1117'/%3E%3Ccircle cx='16' cy='16' r='9' fill='%234dd0e1'/%3E%3Ctext x='16' y='21' font-family='Arial,sans-serif' font-size='13' font-weight='700' text-anchor='middle' fill='%230a1a1c'%3E1%3C/text%3E%3C/svg%3E">
   <link rel="stylesheet" href="styles.css">
 </head>
 <body class="label-notes">
@@ -89,6 +95,7 @@
           <button class="menu-item" id="copy-btn" role="menuitem">Copy Chart</button>
           <button class="menu-item" id="view-btn" role="menuitem">View Chart</button>
           <div class="menu-sep"></div>
+          <button class="menu-item" id="restore-prev-btn" role="menuitem" title="Bring back the chart that was replaced by the last Load or Clear">↩ Restore previous chart</button>
           <button class="menu-item danger" id="clear-btn" role="menuitem">Clear chart</button>
         </div>
       </div>

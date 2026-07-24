@@ -17,12 +17,12 @@ A–D — titles kept out of version control). They live locally and are git-ign
 - [ ] `[BO]` App opens to a fretboard with an intro panel; **Start a Chart** reveals the charting panel.
 - [x] `[PASS D18 — fixed M5]` First-run intro panel explains the tool, offers **Start a Chart** and **Load a Sample Chart**, and an expandable "How it works"; entry button relabeled "Start a Chart"/"Charting…". *(Final "no coaching needed" confirmation is a pilot check, M7.)*
 
-## 2. Enter song details (title, writer, key, meter, tuning, tempo)
-- [ ] `[BO]` Title, writer, tempo fields accept text.
+## 2. Enter song details (title, writer, key, meter, tuning)
+- [ ] `[BO]` Title and writer fields accept text. (There is no free-text tempo field as of M6.3 — BPM is set on the transport and is the single source of tempo.)
 - [ ] `[AUTO]` Key selector and transpose buttons change the NNS mapping.
 - [ ] `[AUTO]` Meter selector switches 4/4, 3/4, 2/4, 6/8.
 - [ ] `[BO]` Tuning selector redraws the fretboard for the chosen tuning.
-- [x] `[PASS D2 — fixed M3]` Title/writer/tempo autosave as you type and survive reload.
+- [x] `[PASS D2 — fixed M3]` Title/writer autosave as you type and survive reload; BPM saves only once set.
 
 ## 3. Add and name sections
 - [ ] `[BO]` "+ Section" adds a named section; sections render in order.

@@ -38,8 +38,16 @@ bars (grid tracks grew to content). Fixed by locking every bar to a fixed width 
 `1fr` columns + `min-width:0` on chords. Verified by high-res render of the real 6/8 chart:
 barlines now align in both one- and two-column layouts. Baselines regenerated.
 
-**Still open:** D19, D20 → M8 (favicon/meta, localStorage key namespacing).
-D21 addressed by the in-app storage note. All P0–P1 defects resolved.
+> **D22 note (2026-07-23):** the fixed-width-bar mechanism described above was later retired
+> wholesale by the M6.2 flowing-layout redesign. Alignment is now handled by the flowing grid,
+> not fixed widths. This record is kept for history; the specific CSS it references no longer exists.
+
+**Fixed in M8 (2026-07-23):** D19 (favicon + page/Open Graph meta added to `index.html` head),
+D20 (localStorage moved to the namespaced `bassboard-composer:*` keys, with one-time migration
+from the old `nns-chart` key). Also added a recoverable previous-chart slot and a periodic
+"back up your chart" nudge, so Load/Load-sample/Clear never leave zero recoverable copies.
+
+**Still open:** none of the P0–P1 defects remain. D21 addressed by the in-app storage note.
 
 ---
 

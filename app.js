@@ -11,8 +11,14 @@
   const FLAT_KEYS   = new Set([1, 3, 5, 8, 10]);   // Db, Eb, F, Ab, Bb — spell with flats
   let chartLetters  = false;                        // false = Nashville numbers, true = letter chords
 
-  const STORAGE_KEY = 'nns-chart';                  // browser autosave slot (namespaced in M8)
+  const STORAGE_KEY     = 'bassboard-composer:chart';   // browser autosave slot
+  const OLD_STORAGE_KEY = 'nns-chart';                  // pre-M8 key, migrated on first load
+  const SHADOW_KEY      = 'bassboard-composer:shadow';  // up to 2 replaced charts (undo a Load/Clear)
+  const META_KEY        = 'bassboard-composer:meta';    // { lastBackup: ms } for the backup nudge
+  const SHADOW_DEPTH    = 2;
+  const NUDGE_EVERY     = 50;                            // changes between backup reminders
   let bpmTouched    = false;                        // has the user set a tempo? (else omit from print)
+  let changesSinceBackup = 0;
 
   // Printed/displayed key name agrees with the letters-mode spelling (flat keys → flats)
   const KEY_NAMES = Array.from({ length: 12 }, (_, i) => (FLAT_KEYS.has(i) ? FLAT_NAMES : SHARP_NAMES)[i]);
@@ -727,8 +733,9 @@
 
   function loadSample() {
     if (chartHasContent() &&
-        !confirm('Load the sample chart? It will replace what you have open now.')) return;
+        !confirm('Load the sample chart? It will replace what you have open now. (You can get the current one back with File ▸ Restore previous chart.)')) return;
     if (isPlaying) stopPlayback();
+    pushShadow();    // keep the replaced chart recoverable
     restoreSnapshot(JSON.parse(JSON.stringify(SAMPLE_CHART)));
     setTranscribeMode(true);
     updateNNSLabels();
@@ -1532,8 +1539,9 @@
   });
 
   document.getElementById('clear-btn').addEventListener('click', () => {
-    if (!confirm('Clear the entire chart? This also removes the copy saved in this browser. Anything not saved to a file will be lost.')) return;
+    if (!confirm('Clear the entire chart? (You can get it back with File ▸ Restore previous chart, or Undo.)')) return;
     if (isPlaying) stopPlayback();
+    pushShadow();    // keep the cleared chart recoverable
     chart.sections = [{ name:'', entries:[], breaks:[], barNotes:{} }];
     chart.currentSec = 0; chart.selectedId = null; chart.lastAddedId = null; chart.nextId = 0; chart.loopSection = null;
     renderChart();
@@ -1541,6 +1549,7 @@
   });
 
   document.getElementById('copy-btn').addEventListener('click', copyChart);
+  document.getElementById('restore-prev-btn').addEventListener('click', restorePreviousChart);
 
   // 3-way transport: Play / Play+Metronome / Metronome-only. One tap picks a mode;
   // tapping the active mode stops. Play<->Play+Metronome toggles the click live.
@@ -1981,6 +1990,73 @@ ${bodyHtml}
            document.getElementById('song-title').value.trim() !== '';
   }
 
+  /* ── Storage safety (M8) ──────────────────────────── */
+
+  // Move the pre-M8 autosave to the namespaced key, once.
+  function migrateStorageKey() {
+    try {
+      if (localStorage.getItem(STORAGE_KEY) === null) {
+        const old = localStorage.getItem(OLD_STORAGE_KEY);
+        if (old !== null) localStorage.setItem(STORAGE_KEY, old);
+      }
+      localStorage.removeItem(OLD_STORAGE_KEY);
+    } catch {}
+  }
+
+  function getShadow() {
+    try { const v = JSON.parse(localStorage.getItem(SHADOW_KEY)); return Array.isArray(v) ? v : []; }
+    catch { return []; }
+  }
+  function saveShadow(arr) {
+    try { localStorage.setItem(SHADOW_KEY, JSON.stringify(arr.slice(0, SHADOW_DEPTH))); } catch {}
+  }
+  // Before an overwrite (Load / Load Sample / Clear), keep the outgoing chart recoverable.
+  function pushShadow() {
+    if (!chartHasContent()) return;
+    const shadow = getShadow();
+    shadow.unshift(chartSnapshot());
+    saveShadow(shadow);
+    updateRestoreItem();
+  }
+  function updateRestoreItem() {
+    const btn = document.getElementById('restore-prev-btn');
+    if (btn) btn.disabled = getShadow().length === 0;
+  }
+  function restorePreviousChart() {
+    const shadow = getShadow();
+    if (!shadow.length) { showToast('No previous chart to restore.'); return; }
+    const prev = shadow.shift();
+    const current = chartHasContent() ? chartSnapshot() : null;
+    if (isPlaying) stopPlayback();
+    if (!isValidSnapshot(prev)) { showToast('The previous chart could not be restored.'); return; }
+    restoreSnapshot(prev);
+    setTranscribeMode(true);
+    updateNNSLabels();
+    renderChart();
+    resetHistory();
+    if (current) shadow.unshift(current);   // so you can flip back
+    saveShadow(shadow);
+    updateRestoreItem();
+    showToast('Restored the previous chart.');
+  }
+
+  /* ── Backup nudge (M8) ────────────────────────────── */
+  function getMeta() { try { return JSON.parse(localStorage.getItem(META_KEY)) || {}; } catch { return {}; } }
+  function saveMeta(m) { try { localStorage.setItem(META_KEY, JSON.stringify(m)); } catch {} }
+  function noteBackupTaken() { const m = getMeta(); m.lastBackup = Date.now(); saveMeta(m); changesSinceBackup = 0; }
+  function maybeNudgeBackup() {
+    if (++changesSinceBackup >= NUDGE_EVERY) {
+      changesSinceBackup = 0;
+      showToast('You\'ve made a lot of edits — use File ▸ Save to download a backup you can keep.');
+    }
+  }
+  function backupNudgeOnLoad() {
+    const m = getMeta();
+    if (m.lastBackup && chartHasContent() && (Date.now() - m.lastBackup) > 7 * 864e5) {
+      showToast('It\'s been a while since you saved a backup — File ▸ Save downloads one.');
+    }
+  }
+
   /* ── Undo / redo (snapshot stack) ─────────────────── */
   // History tracks chart CONTENT (notes, sections, key, meter, tuning). It does
   // not track free-text song details (title/writer/tempo) — those have native
@@ -2022,6 +2098,7 @@ ${bodyHtml}
     redoStack = [];
     lastCommitted = cur;
     updateUndoRedoButtons();
+    maybeNudgeBackup();
   }
 
   function applyContent(str) {
@@ -2093,6 +2170,7 @@ ${bodyHtml}
       { href: URL.createObjectURL(blob), download: `${title}.json` });
     a.click();
     URL.revokeObjectURL(a.href);
+    noteBackupTaken();
     showToast('Chart saved to your downloads');
   }
 
@@ -2111,10 +2189,11 @@ ${bodyHtml}
         return;
       }
       if (chartHasContent() &&
-          !confirm('Load this chart? It will replace what you have open now. Anything not saved to a file will be lost.')) {
+          !confirm('Load this chart? It will replace what you have open now. (You can get the current one back with File ▸ Restore previous chart.)')) {
         return;
       }
       if (isPlaying) stopPlayback();
+      pushShadow();    // keep the replaced chart recoverable
       restoreSnapshot(data);
       setTranscribeMode(true);
       updateNNSLabels();
@@ -2179,6 +2258,7 @@ ${bodyHtml}
 
   /* ── Init ────────────────────────────────────────── */
   buildFretboard();
+  migrateStorageKey();   // move any pre-M8 autosave onto the namespaced key first
 
   // Restore last session from localStorage, and show it immediately if it has content
   try {
@@ -2192,3 +2272,5 @@ ${bodyHtml}
   initBeatGrid();
   renderChart();
   resetHistory();  // establish the baseline state; nothing before this is undoable
+  updateRestoreItem();
+  backupNudgeOnLoad();
